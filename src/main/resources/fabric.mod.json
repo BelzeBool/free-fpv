@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "${id}",
+  "version": "${version}",
+  "name": "${name}",
+  "description": "FPV and DJI-style camera drones for roleplay servers. Replaces free camera with a flyable drone; keyboard, mouse and gamepad (DualSense, Xbox) control.",
+  "authors": ["BelzeBool"],
+  "license": "All-Rights-Reserved",
+  "icon": "assets/freefpv/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.belzebool.freefpv.platform.FabricEntry"],
+    "client": ["com.belzebool.freefpv.platform.FabricClientEntry"]
+  },
+  "mixins": ["freefpv.mixins.json"],
+  "accessWidener": "freefpv.ct",
+  "depends": {
+    "fabricloader": ">=0.17",
+    "fabric-api": "*",
+    "minecraft": "${minecraft}"
+  },
+  "suggests": {
+    "emotecraft": "*",
+    "figura": "*"
+  }
+}

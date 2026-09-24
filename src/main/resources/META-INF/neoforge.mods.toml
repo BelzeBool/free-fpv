@@ -1,0 +1,22 @@
+license = "All-Rights-Reserved"
+
+modLoader = "javafml"
+loaderVersion = "[1,)"
+
+[[mods]]
+modId = "${id}"
+displayName = "${name}"
+version = "${version}"
+authors = "BelzeBool"
+description = "FPV and DJI-style camera drones for roleplay servers. Replaces free camera with a flyable drone; keyboard, mouse and gamepad (DualSense, Xbox) control."
+logoFile = "assets/freefpv/icon.png"
+
+[[mixins]]
+config = "freefpv.mixins.json"
+
+[[dependencies.${id}]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft}"
+ordering = "NONE"
+side = "BOTH"

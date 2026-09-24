@@ -1,0 +1,9 @@
+{
+  "key.category.freefpv.main": "Free FPV",
+  "key.freefpv.launch": "Запустить / посадить дрон",
+  "key.freefpv.mode": "Режим полёта",
+  "key.freefpv.type": "FPV / камерный дрон",
+  "key.freefpv.record": "Запись (REC)",
+  "key.freefpv.osd": "Показать / скрыть OSD",
+  "key.freefpv.gimbal_reset": "Подвес: прямо / вниз"
+}

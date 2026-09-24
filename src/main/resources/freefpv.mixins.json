@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "package": "com.belzebool.freefpv.mixin",
+  "compatibilityLevel": "${java}",
+  "mixins": [
+    "DisplayAccessor",
+    "ItemDisplayAccessor"
+  ],
+  "client": [
+    "CameraMixin",
+    "EntityRenderDispatcherMixin",
+    "EntityTurnMixin",
+    "MinecraftMixin",
+    "MouseHandlerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

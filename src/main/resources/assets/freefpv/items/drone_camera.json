@@ -1,0 +1,6 @@
+{
+ "model": {
+  "type": "minecraft:model",
+  "model": "freefpv:item/drone_camera"
+ }
+}

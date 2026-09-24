@@ -1,0 +1,9 @@
+{
+  "key.category.freefpv.main": "Free FPV",
+  "key.freefpv.launch": "Launch / land drone",
+  "key.freefpv.mode": "Flight mode",
+  "key.freefpv.type": "Switch FPV / camera drone",
+  "key.freefpv.record": "Record (REC)",
+  "key.freefpv.osd": "Toggle OSD",
+  "key.freefpv.gimbal_reset": "Gimbal: level / straight down"
+}
