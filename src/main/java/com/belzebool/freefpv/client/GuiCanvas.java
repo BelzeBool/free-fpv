@@ -3,6 +3,14 @@ package com.belzebool.freefpv.client;
 import com.belzebool.freefpv.core.osd.OsdCanvas;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
+import java.util.HashMap;
+import java.util.Map;
 //? if >=26.1 {
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 //?} else
@@ -10,6 +18,9 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /** {@link OsdCanvas} on top of the vanilla GUI renderer. */
 public final class GuiCanvas implements OsdCanvas {
+    private static final Map<String, Identifier> SPRITES = new HashMap<>();
+    private static final Map<String, ItemStack> ICONS = new HashMap<>();
+
     //? if >=26.1 {
     private final GuiGraphicsExtractor g;
     //?} else
@@ -76,5 +87,24 @@ public final class GuiCanvas implements OsdCanvas {
     @Override
     public void scale(float s) {
         g.pose().scale(s);
+    }
+
+    @Override
+    public void sprite(String id, int x, int y, int w, int h) {
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, SPRITES.computeIfAbsent(id, Identifier::parse), x, y, w, h);
+    }
+
+    @Override
+    public void icon(String itemModel, int x, int y) {
+        g.item(iconStack(itemModel), x, y);
+    }
+
+    /** A client-only stack that renders with the given item model; also used for the remote held in hand. */
+    public static ItemStack iconStack(String itemModel) {
+        return ICONS.computeIfAbsent(itemModel, id -> {
+            ItemStack stack = new ItemStack(Items.PAPER);
+            stack.set(DataComponents.ITEM_MODEL, Identifier.parse(id));
+            return stack;
+        });
     }
 }

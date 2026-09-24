@@ -24,6 +24,12 @@ public interface OsdCanvas {
 
     void scale(float s);
 
+    /** Draws a GUI sprite ("namespace:path" under textures/gui/sprites) stretched to the given size. */
+    void sprite(String id, int x, int y, int w, int h);
+
+    /** Draws a 16x16 item icon for an item model id ("namespace:path"), like a hotbar slot does. */
+    void icon(String itemModel, int x, int y);
+
     default void centeredText(String text, int cx, int y, int argb, boolean shadow) {
         text(text, cx - textWidth(text) / 2, y, argb, shadow);
     }

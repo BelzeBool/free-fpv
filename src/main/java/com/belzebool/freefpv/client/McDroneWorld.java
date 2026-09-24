@@ -32,6 +32,20 @@ final class McDroneWorld implements DroneWorld {
         result.set(allowed.x, allowed.y, allowed.z);
     }
 
+    /**
+     * Keeps the camera out of blocks: sweeps a small box from the drone centre to where the lens wants to be and
+     * stops it at the first surface. With the radius larger than the near-plane corners, walls can't be seen through
+     * even when the drone is pressed against them or tumbling after a crash.
+     */
+    void clampCamera(Vector3d center, Vector3d camera, double radius) {
+        ClientLevel level = level();
+        if (level == null) return;
+        AABB box = new AABB(center.x - radius, center.y - radius, center.z - radius, center.x + radius, center.y + radius, center.z + radius);
+        Vec3 wanted = new Vec3(camera.x - center.x, camera.y - center.y, camera.z - center.z);
+        Vec3 allowed = Entity.collideBoundingBox((Entity) null, wanted, box, level, List.of());
+        camera.set(center.x + allowed.x, center.y + allowed.y, center.z + allowed.z);
+    }
+
     @Override
     public boolean isInLiquid(double x, double y, double z) {
         ClientLevel level = level();

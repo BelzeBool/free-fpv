@@ -18,8 +18,15 @@ public final class Keys {
     public static final KeyMapping RECORD = key("record", InputConstants.KEY_R);
     public static final KeyMapping OSD = key("osd", InputConstants.KEY_O);
     public static final KeyMapping GIMBAL_RESET = key("gimbal_reset", InputConstants.KEY_G);
+    public static final KeyMapping RETURN_HOME = key("return_home", InputConstants.KEY_H);
+    public static final KeyMapping HELP = key("help", InputConstants.KEY_I);
+    /** Selects the 10th slot (tool slot), like the number keys select hotbar slots. */
+    public static final KeyMapping TOOL_SLOT = key("tool_slot", InputConstants.KEY_0);
+    /** Hold to open the radial tool wheel. */
+    public static final KeyMapping TOOL_WHEEL = key("tool_wheel", InputConstants.KEY_LALT);
 
-    public static final List<KeyMapping> ALL = List.of(LAUNCH, MODE, DRONE_TYPE, RECORD, OSD, GIMBAL_RESET);
+    public static final List<KeyMapping> ALL = List.of(LAUNCH, MODE, DRONE_TYPE, RECORD, OSD, GIMBAL_RESET, RETURN_HOME, HELP,
+        TOOL_SLOT, TOOL_WHEEL);
 
     private Keys() {
     }

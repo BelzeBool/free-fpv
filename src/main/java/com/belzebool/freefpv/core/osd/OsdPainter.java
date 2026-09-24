@@ -1,5 +1,7 @@
 package com.belzebool.freefpv.core.osd;
 
+import com.belzebool.freefpv.core.DronePhysics;
+
 import java.util.Locale;
 import java.util.Random;
 
@@ -18,13 +20,17 @@ public final class OsdPainter {
     private final Random random = new Random();
 
     public void paint(OsdCanvas c, OsdState s) {
-        if (s.mode.isFpv()) {
-            if (s.analogEffects) analog(c, s);
-            fpv(c, s);
-        } else {
-            camera(c, s);
+        if (s.showOsd || s.crashed) {
+            if (s.mode.isFpv()) {
+                if (s.analogEffects) analog(c, s);
+                fpv(c, s);
+            } else {
+                camera(c, s);
+            }
         }
         if (s.crashed) crashOverlay(c, s);
+        if (s.helpAlpha > 0.01 && !s.help.isEmpty()) help(c, s);
+        if (s.transitions && s.feedAge < 0.9) transition(c, s);
         if (s.hintTimer > 0 && !s.hint.isEmpty()) {
             int alpha = (int) (Math.min(1, s.hintTimer) * 255) << 24;
             int y = c.height() - 58;
@@ -46,8 +52,25 @@ public final class OsdPainter {
         c.centeredText(badge, 10, 5, 0xFF111111, false);
         c.text(s.mode.displayName, 20, 5, WHITE, true);
 
-        String status = s.crashed ? "Aircraft Disconnected" : s.signal < 0.35 ? "Weak Signal" : "In Flight (GPS)";
-        int statusColor = s.crashed ? RED : s.signal < 0.35 ? YELLOW : GREEN;
+        String status;
+        int statusColor;
+        if (s.crashed) {
+            status = "Aircraft Disconnected";
+            statusColor = RED;
+        } else if (s.autopilot != DronePhysics.Autopilot.NONE) {
+            status = switch (s.autopilot) {
+                case RTH_DESCEND -> "Landing";
+                case LANDED -> "Landed";
+                default -> "Returning to Home";
+            };
+            statusColor = YELLOW;
+        } else if (s.signal < 0.35) {
+            status = "Weak Signal";
+            statusColor = YELLOW;
+        } else {
+            status = "In Flight (GPS)";
+            statusColor = GREEN;
+        }
         int sw = c.textWidth(status) + 12;
         c.fill(w / 2 - sw / 2, 2, w / 2 + sw / 2, 16, (statusColor & 0x00FFFFFF) | 0xCC000000);
         c.centeredText(status, w / 2, 5, 0xFF0B0B0B, false);
@@ -83,6 +106,14 @@ public final class OsdPainter {
             boolean on = ((int) (s.time * 2)) % 2 == 0;
             if (on) c.fill(8, 24, 13, 29, RED);
             c.text("REC " + time(s.flightTime), 16, 23, WHITE, true);
+        }
+
+        // Home point marker while returning
+        if (s.autopilot == DronePhysics.Autopilot.RTH_CLIMB || s.autopilot == DronePhysics.Autopilot.RTH_CRUISE) {
+            String rth = String.format(Locale.ROOT, "H  %.0f m", s.distancePilot);
+            int rw = c.textWidth(rth) + 10;
+            c.fill(w / 2 - rw / 2, 40, w / 2 + rw / 2, 52, 0xAA1C1C1C);
+            c.centeredText(rth, w / 2, 42, YELLOW, true);
         }
 
         // Telemetry, bottom left
@@ -185,6 +216,7 @@ public final class OsdPainter {
         c.text("LQ " + lq, 6, 6, s.signal < 0.35 ? RED : WHITE, true);
         c.text("RSSI -" + (int) Math.round(40 + (1 - s.signal) * 65), 6, 16, s.signal < 0.35 ? RED : WHITE, true);
         c.rightText(String.format(Locale.ROOT, "THR %d", (int) Math.round(s.throttle * 100)), w - 6, 6, WHITE, true);
+        throttleBar(c, s, w - 9, 18, 48);
 
         String home = arrow(s.homeBearing) + String.format(Locale.ROOT, " %.0fm", s.distancePilot);
         c.centeredText(home, cx, 6, WHITE, true);
@@ -196,6 +228,7 @@ public final class OsdPainter {
             c.text(String.format(Locale.ROOT, "%d%%", (int) Math.round(s.battery * 100)), 6, h - 12, DIM, true);
         }
         c.centeredText(s.mode.osdLabel, cx, h - 22, WHITE, true);
+        if (s.altitudeHold) c.centeredText("ALT HOLD", cx, h - 32, DIM, true);
         c.centeredText(time(s.flightTime), cx, h - 12, WHITE, true);
         c.rightText(String.format(Locale.ROOT, "%.1fm", s.altitude), w - 6, h - 22, WHITE, true);
         c.rightText(String.format(Locale.ROOT, "%d km/h", (int) Math.round(Math.hypot(s.horizontalSpeed, s.verticalSpeed) * 3.6)), w - 6, h - 12, WHITE, true);
@@ -206,6 +239,64 @@ public final class OsdPainter {
         else if (s.signal < 0.35) warning = "RSSI LOW";
         if (warning != null && !s.crashed && ((int) (s.time * 3)) % 2 == 0) {
             c.centeredText(warning, cx, cy - 34, WHITE, true);
+        }
+    }
+
+    /** Thin vertical throttle gauge with a tick where the quad hovers; helps keyboard pilots find hover. */
+    private void throttleBar(OsdCanvas c, OsdState s, int x, int top, int height) {
+        int bottom = top + height;
+        c.fill(x, top, x + 3, bottom, 0x55000000);
+        int filled = (int) Math.round(Math.max(0, Math.min(1, s.throttle)) * height);
+        c.fill(x, bottom - filled, x + 3, bottom, s.throttle > 0.95 ? YELLOW : DIM);
+        int hy = bottom - (int) Math.round(Math.max(0, Math.min(1, s.hoverThrottle)) * height);
+        c.fill(x - 2, hy, x + 5, hy + 1, GREEN);
+    }
+
+    /** Controls panel on the left: a keycap and what it does, one row per binding. */
+    private void help(OsdCanvas c, OsdState s) {
+        int alpha = (int) (Math.min(1, s.helpAlpha) * 255);
+        int line = c.lineHeight() + 4;
+        int keyW = 0, textW = c.textWidth(s.helpTitle);
+        for (String[] row : s.help) {
+            keyW = Math.max(keyW, c.textWidth(row[0]));
+            textW = Math.max(textW, c.textWidth(row[1]));
+        }
+        int pad = 6;
+        int width = keyW + textW + pad * 4;
+        int height = (s.help.size() + 1) * line + pad * 2;
+        int x = 8, y = Math.max(22, Math.min(c.height() / 2 - height / 2, c.height() - 72 - height));
+        c.fill(x, y, x + width, y + height, (int) (alpha * 0.62) << 24 | 0x0C0E12);
+        c.fill(x, y, x + 2, y + height, alpha << 24 | 0xFF7A1A);
+        c.text(s.helpTitle, x + pad + 2, y + pad, alpha << 24 | 0xFFFFFF, true);
+        int ry = y + pad + line;
+        for (String[] row : s.help) {
+            int kw = c.textWidth(row[0]);
+            int kx = x + pad + 2 + (keyW - kw) / 2;
+            c.fill(kx - 3, ry - 2, kx + kw + 3, ry + c.lineHeight(), (int) (alpha * 0.9) << 24 | 0x2A2E36);
+            c.hLine(kx - 3, kx + kw + 2, ry + c.lineHeight(), (int) (alpha * 0.9) << 24 | 0x14161A);
+            c.text(row[0], kx, ry, alpha << 24 | 0xFFFFFF, false);
+            c.text(row[1], x + pad * 3 + keyW, ry, (int) (alpha * 0.85) << 24 | 0xE6E6E6, true);
+            ry += line;
+        }
+    }
+
+    /** Video feed coming up: DJI-style fade from black, or analog snow clearing on FPV goggles. */
+    private void transition(OsdCanvas c, OsdState s) {
+        int w = c.width(), h = c.height();
+        double t = s.feedAge;
+        if (s.mode.isFpv()) {
+            double k = Math.max(0, 1 - t / 0.7);
+            if (k > 0) noise(c, k * 1.8);
+            int black = (int) (Math.max(0, 1 - t / 0.35) * 255);
+            if (black > 0) c.fill(0, 0, w, h, black << 24);
+        } else {
+            double k = Math.max(0, 1 - t / 0.75);
+            int black = (int) (Math.pow(k, 1.5) * 255);
+            if (black > 0) c.fill(0, 0, w, h, black << 24);
+            if (t < 0.5) {
+                int dots = (int) (t * 8) % 4;
+                c.centeredText(s.connectingText + ".".repeat(dots), w / 2, h / 2 - 4, 0xFFFFFF | (int) (Math.min(1, k * 1.5) * 255) << 24, true);
+            }
         }
     }
 

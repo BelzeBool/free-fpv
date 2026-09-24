@@ -5,7 +5,11 @@ import com.belzebool.freefpv.FreeFpv;
 import com.belzebool.freefpv.client.DroneController;
 import com.belzebool.freefpv.client.GuiCanvas;
 import com.belzebool.freefpv.client.Keys;
+import com.belzebool.freefpv.client.ServerFeatures;
+import com.belzebool.freefpv.client.tools.ToolSlot;
+import com.belzebool.freefpv.net.DroneInfoPayload;
 import com.belzebool.freefpv.net.OwnDronePayload;
+import com.belzebool.freefpv.net.ServerConfigPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -38,9 +42,14 @@ public class FabricClientEntry implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(DroneController.INSTANCE::clientTick);
         ClientPlayNetworking.registerGlobalReceiver(OwnDronePayload.TYPE,
             (payload, context) -> DroneController.INSTANCE.setOwnDroneId(payload.entityId()));
+        ClientPlayNetworking.registerGlobalReceiver(ServerConfigPayload.TYPE, (payload, context) -> ServerFeatures.accept(payload));
+        ClientPlayNetworking.registerGlobalReceiver(DroneInfoPayload.TYPE,
+            (payload, context) -> DroneController.INSTANCE.onDroneInfo(payload));
 
         HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, FreeFpv.id("osd"),
             (graphics, delta) -> DroneController.INSTANCE.renderHud(new GuiCanvas(graphics)));
+        HudElementRegistry.attachElementAfter(VanillaHudElements.HOTBAR, FreeFpv.id("tool_slot"),
+            (graphics, delta) -> ToolSlot.INSTANCE.render(graphics));
         for (Identifier id : HIDDEN) {
             HudElementRegistry.replaceElement(id, original -> (graphics, delta) -> {
                 if (!DroneController.INSTANCE.hideVanillaHud()) original./*? if >=26.1 {*/extractRenderState/*?} else {*//*render*//*?}*/(graphics, delta);

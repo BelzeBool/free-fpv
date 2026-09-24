@@ -5,7 +5,11 @@ package com.belzebool.freefpv.platform;
 import com.belzebool.freefpv.client.DroneController;
 import com.belzebool.freefpv.client.GuiCanvas;
 import com.belzebool.freefpv.client.Keys;
+import com.belzebool.freefpv.client.ServerFeatures;
+import com.belzebool.freefpv.client.tools.ToolSlot;
+import com.belzebool.freefpv.net.DroneInfoPayload;
 import com.belzebool.freefpv.net.OwnDronePayload;
+import com.belzebool.freefpv.net.ServerConfigPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
@@ -39,10 +43,16 @@ public class NeoForgeClientEntry {
             event.registerCategory(Keys.CATEGORY);
             Keys.ALL.forEach(event::register);
         });
-        modBus.addListener((RegisterGuiLayersEvent event) -> event.registerBelow(VanillaGuiLayers.CHAT, FreeFpv.id("osd"),
-            (graphics, delta) -> DroneController.INSTANCE.renderHud(new GuiCanvas(graphics))));
-        modBus.addListener((RegisterClientPayloadHandlersEvent event) ->
-            event.register(OwnDronePayload.TYPE, NeoForgeClientEntry::handleOwnDrone));
+        modBus.addListener((RegisterGuiLayersEvent event) -> {
+            event.registerBelow(VanillaGuiLayers.CHAT, FreeFpv.id("osd"),
+                (graphics, delta) -> DroneController.INSTANCE.renderHud(new GuiCanvas(graphics)));
+            event.registerAbove(VanillaGuiLayers.HOTBAR, FreeFpv.id("tool_slot"), (graphics, delta) -> ToolSlot.INSTANCE.render(graphics));
+        });
+        modBus.addListener((RegisterClientPayloadHandlersEvent event) -> {
+            event.register(OwnDronePayload.TYPE, NeoForgeClientEntry::handleOwnDrone);
+            event.register(ServerConfigPayload.TYPE, (payload, context) -> ServerFeatures.accept(payload));
+            event.register(DroneInfoPayload.TYPE, (payload, context) -> DroneController.INSTANCE.onDroneInfo(payload));
+        });
 
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event) -> DroneController.INSTANCE.clientTick(Minecraft.getInstance()));
         NeoForge.EVENT_BUS.addListener((RenderGuiLayerEvent.Pre event) -> {
