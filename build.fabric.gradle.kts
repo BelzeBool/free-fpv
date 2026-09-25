@@ -63,6 +63,8 @@ loom {
         runDirectory = rootProject.file("run") // Shares the run directory between versions
         jvmArguments.add("-Dmixin.debug.export=true") // Exports transformed classes for debugging
     }
+    // ./gradlew :26.3-fabric:runClient -Pworld=MyWorld opens that singleplayer world right away
+    if (project.hasProperty("world")) runConfigs.named("client") { programArgs("--quickPlaySingleplayer", project.property("world") as String) }
 }
 
 java {
