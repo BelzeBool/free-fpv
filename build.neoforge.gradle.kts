@@ -77,6 +77,10 @@ tasks {
             register("name", "mod.name")
             register("version", "mod.version")
             register("minecraft", "mod.mc_compat")
+            // NeoForge for 26.2+ warns on start (and stops on a warning screen) about the old key
+            val iconKey = if (sc.current.parsed >= "26.2") "iconFile" else "logoFile"
+            inputs.property("icon_key", iconKey)
+            put("icon_key", iconKey)
         }
 
         filesMatching("META-INF/neoforge.mods.toml") { expand(props) }

@@ -9,7 +9,7 @@ displayName = "${name}"
 version = "${version}"
 authors = "BelzeBool"
 description = "FPV and DJI-style camera drones for roleplay servers. Replaces free camera with a flyable drone; keyboard, mouse and gamepad (DualSense, Xbox) control."
-logoFile = "assets/freefpv/icon.png"
+${icon_key} = "assets/freefpv/icon.png"
 
 [[mixins]]
 config = "freefpv.mixins.json"

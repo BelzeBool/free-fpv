@@ -15,7 +15,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
+//? if >=26.2 {
 import net.minecraft.world.entity.EntityTypes;
+//?} else
+//import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.joml.Quaternionf;
@@ -119,7 +122,7 @@ public final class DroneServer {
     }
 
     private static Display.ItemDisplay spawn(ServerLevel level, DroneStatePayload msg) {
-        Display.ItemDisplay entity = new Display.ItemDisplay(EntityTypes.ITEM_DISPLAY, level);
+        Display.ItemDisplay entity = new Display.ItemDisplay(/*? if >=26.2 {*/EntityTypes/*?} else {*//*EntityType*//*?}*/.ITEM_DISPLAY, level);
         ItemStack stack = new ItemStack(Items.PAPER);
         stack.set(DataComponents.ITEM_MODEL, FreeFpv.id(msg.fpv() ? "drone_fpv" : "drone_camera"));
         ((ItemDisplayAccessor) entity).freefpv$setItemStack(stack);
@@ -182,7 +185,7 @@ public final class DroneServer {
 
     /** Drones saved into a chunk by a crash or restart come back as orphans; drop them on load. */
     public static boolean isOrphan(Entity entity) {
-        if (entity == spawning || !(entity instanceof Display.ItemDisplay) || !entity.entityTags().contains(FreeFpv.DRONE_TAG)) return false;
+        if (entity == spawning || !(entity instanceof Display.ItemDisplay) || !entity./*? if >=26.1 {*/entityTags/*?} else {*//*getTags*//*?}*/().contains(FreeFpv.DRONE_TAG)) return false;
         for (Drone drone : DRONES.values()) {
             if (drone.entity == entity) return false;
         }

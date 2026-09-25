@@ -20,7 +20,7 @@ import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
-//? if >=1.21.9 {
+//? if >=26.1 {
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 //?} else
 //import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -31,11 +31,11 @@ public class FabricClientEntry implements ClientModInitializer {
         VanillaHudElements.HOTBAR, VanillaHudElements.HEALTH_BAR, VanillaHudElements.ARMOR_BAR,
         VanillaHudElements.FOOD_BAR, VanillaHudElements.AIR_BAR, VanillaHudElements.MOUNT_HEALTH,
         VanillaHudElements.INFO_BAR, VanillaHudElements.EXPERIENCE_LEVEL, VanillaHudElements.HELD_ITEM_TOOLTIP,
-        VanillaHudElements.MOB_EFFECTS, VanillaHudElements.CROSSHAIR);
+        VanillaHudElements./*? if >=26.1 {*/MOB_EFFECTS/*?} else {*//*STATUS_EFFECTS*//*?}*/, VanillaHudElements.CROSSHAIR);
 
     @Override
     public void onInitializeClient() {
-        //? if >=1.21.9 {
+        //? if >=26.1 {
         Keys.ALL.forEach(KeyMappingHelper::registerKeyMapping);
         //?} else
         //Keys.ALL.forEach(KeyBindingHelper::registerKeyBinding);

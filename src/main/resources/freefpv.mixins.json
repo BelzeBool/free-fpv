@@ -13,6 +13,7 @@
     "EntityRenderDispatcherMixin",
     "EntityTurnMixin",
     "FirstPersonHandsAndItemsMixin",
+    "GameRendererMixin",
     "HudMixin",
     "HumanoidModelMixin",
     "MinecraftMixin",

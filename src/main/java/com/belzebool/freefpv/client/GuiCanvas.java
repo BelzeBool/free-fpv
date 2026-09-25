@@ -101,7 +101,7 @@ public final class GuiCanvas implements OsdCanvas {
 
     @Override
     public void icon(String itemModel, int x, int y) {
-        g.item(iconStack(itemModel), x, y);
+        g./*? if >=26.1 {*/item/*?} else {*//*renderItem*//*?}*/(iconStack(itemModel), x, y);
     }
 
     /** A client-only stack that renders with the given item model; also used for the remote held in hand. */

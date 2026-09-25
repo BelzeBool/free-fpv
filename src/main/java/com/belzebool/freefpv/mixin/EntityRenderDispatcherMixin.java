@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class EntityRenderDispatcherMixin {
     @Inject(method = "shouldRender", at = @At("HEAD"), cancellable = true)
     private <E extends Entity> void freefpv$hideOwnDrone(E entity, Frustum culler, double camX, double camY, double camZ,
-                                                        /*? if >=1.21.9 {*/float partialTicks, /*?}*/CallbackInfoReturnable<Boolean> cir) {
+                                                        /*? if >=26.3 {*/float partialTicks, /*?}*/CallbackInfoReturnable<Boolean> cir) {
         if (DroneController.INSTANCE.shouldHide(entity)) cir.setReturnValue(false);
     }
 }

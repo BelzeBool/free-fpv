@@ -233,10 +233,7 @@ public final class ToolSlot {
         pop = Math.max(0, pop - dt / 0.2);
 
         if (!enabled() || mc.player == null || mc.player.isSpectator() || DroneController.INSTANCE.isFlying()) return;
-        //? if >=26.1 {
-        if (mc.gui.hud.isHidden()) return;
-        //?} else
-        //if (mc.options.hideGui) return;
+        if (com.belzebool.freefpv.client.Compat.hudHidden(mc)) return;
         Multitool tool = selected();
         if (tool == null && !wheel.isDrawn()) return;
         GuiCanvas c = new GuiCanvas(graphics);

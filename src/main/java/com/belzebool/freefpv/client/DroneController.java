@@ -967,10 +967,7 @@ public final class DroneController {
     }
 
     private static net.minecraft.client.gui.screens.Screen screen(Minecraft mc) {
-        //? if >=26.1 {
-        return mc.gui.screen();
-        //?} else
-        //return mc.screen;
+        return Compat.screen(mc);
     }
 
     private static String keyName(KeyMapping key) {

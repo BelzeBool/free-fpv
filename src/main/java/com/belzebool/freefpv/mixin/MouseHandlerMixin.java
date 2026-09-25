@@ -1,5 +1,6 @@
 package com.belzebool.freefpv.mixin;
 
+import com.belzebool.freefpv.client.Compat;
 import com.belzebool.freefpv.client.DroneController;
 import com.belzebool.freefpv.client.tools.ToolSlot;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -21,11 +22,7 @@ public abstract class MouseHandlerMixin {
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
     private void freefpv$zoom(long handle, double xoffset, double yoffset, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
-        //? if >=26.1 {
-        boolean idle = mc.gui.screen() == null && mc.gui.overlay() == null;
-        //?} else
-        //boolean idle = mc.screen == null && mc.getOverlay() == null;
-        if (!idle) return;
+        if (!Compat.inWorldView(mc)) return;
         if (DroneController.INSTANCE.isFlying()) {
             DroneController.INSTANCE.onScroll(yoffset);
             ci.cancel();
