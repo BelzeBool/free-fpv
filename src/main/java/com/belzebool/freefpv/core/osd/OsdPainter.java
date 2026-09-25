@@ -32,11 +32,9 @@ public final class OsdPainter {
         if (s.helpAlpha > 0.01 && !s.help.isEmpty()) help(c, s);
         if (s.transitions && s.feedAge < 0.9) transition(c, s);
         if (s.hintTimer > 0 && !s.hint.isEmpty()) {
-            int alpha = (int) (Math.min(1, s.hintTimer) * 255) << 24;
-            int y = c.height() - 58;
-            int w = c.textWidth(s.hint) + 10;
-            c.fill(c.width() / 2 - w / 2, y - 3, c.width() / 2 + w / 2, y + c.lineHeight() + 1, (int) (Math.min(1, s.hintTimer) * 0x80) << 24);
-            c.centeredText(s.hint, c.width() / 2, y, 0xFFFFFF | alpha, true);
+            // Like the vanilla action bar: plain text with a shadow, fading out.
+            int alpha = Math.max(4, (int) (Math.min(1, s.hintTimer) * 255)) << 24;
+            c.centeredText(s.hint, c.width() / 2, c.height() - 58, 0xFFFFFF | alpha, true);
         }
     }
 
@@ -252,30 +250,35 @@ public final class OsdPainter {
         c.fill(x - 2, hy, x + 5, hy + 1, GREEN);
     }
 
-    /** Controls panel on the left: a keycap and what it does, one row per binding. */
+    /** Controls panel on the left, drawn like a vanilla tooltip: keys in yellow, what they do in white. */
     private void help(OsdCanvas c, OsdState s) {
         int alpha = (int) (Math.min(1, s.helpAlpha) * 255);
-        int line = c.lineHeight() + 4;
-        int keyW = 0, textW = c.textWidth(s.helpTitle);
+        if (alpha < 4) return;
+        int line = c.lineHeight() + 2;
+        int keyW = 0, actionW = 0;
         for (String[] row : s.help) {
             keyW = Math.max(keyW, c.textWidth(row[0]));
-            textW = Math.max(textW, c.textWidth(row[1]));
+            actionW = Math.max(actionW, c.textWidth(row[1]));
         }
-        int pad = 6;
-        int width = keyW + textW + pad * 4;
-        int height = (s.help.size() + 1) * line + pad * 2;
+        int pad = 4;
+        int width = Math.max(c.textWidth(s.helpTitle), keyW + 8 + actionW) + pad * 2;
+        int height = (s.help.size() + 1) * line + pad * 2 + 2;
         int x = 8, y = Math.max(22, Math.min(c.height() / 2 - height / 2, c.height() - 72 - height));
-        c.fill(x, y, x + width, y + height, (int) (alpha * 0.62) << 24 | 0x0C0E12);
-        c.fill(x, y, x + 2, y + height, alpha << 24 | 0xFF7A1A);
-        c.text(s.helpTitle, x + pad + 2, y + pad, alpha << 24 | 0xFFFFFF, true);
-        int ry = y + pad + line;
+        int bg = (int) (alpha * 0.94) << 24 | 0x100010;
+        c.fill(x + 1, y, x + width - 1, y + height, bg);
+        c.fill(x, y + 1, x + width, y + height - 1, bg);
+        int top = (int) (alpha * 0.31) << 24 | 0x5000FF, bottom = (int) (alpha * 0.31) << 24 | 0x28007F;
+        c.hLine(x + 1, x + width - 2, y + 1, top);
+        c.hLine(x + 1, x + width - 2, y + height - 2, bottom);
+        c.vLine(x + 1, y + 1, y + height / 2, top);
+        c.vLine(x + width - 2, y + 1, y + height / 2, top);
+        c.vLine(x + 1, y + height / 2, y + height - 2, bottom);
+        c.vLine(x + width - 2, y + height / 2, y + height - 2, bottom);
+        c.text(s.helpTitle, x + pad, y + pad, alpha << 24 | 0xFFFFFF, true);
+        int ry = y + pad + line + 2;
         for (String[] row : s.help) {
-            int kw = c.textWidth(row[0]);
-            int kx = x + pad + 2 + (keyW - kw) / 2;
-            c.fill(kx - 3, ry - 2, kx + kw + 3, ry + c.lineHeight(), (int) (alpha * 0.9) << 24 | 0x2A2E36);
-            c.hLine(kx - 3, kx + kw + 2, ry + c.lineHeight(), (int) (alpha * 0.9) << 24 | 0x14161A);
-            c.text(row[0], kx, ry, alpha << 24 | 0xFFFFFF, false);
-            c.text(row[1], x + pad * 3 + keyW, ry, (int) (alpha * 0.85) << 24 | 0xE6E6E6, true);
+            c.text(row[0], x + pad, ry, alpha << 24 | 0xFFFF55, true);
+            c.text(row[1], x + pad + keyW + 8, ry, alpha << 24 | 0xE0E0E0, true);
             ry += line;
         }
     }

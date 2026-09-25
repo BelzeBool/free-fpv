@@ -45,16 +45,6 @@ public final class DroneRemoteTool implements Multitool {
         return Component.translatable("tool.freefpv.mode", mode().displayName).getString();
     }
 
-    @Override
-    public String badge() {
-        FlightMode mode = mode();
-        return switch (mode) {
-            case ANGLE -> "ANG";
-            case ACRO -> "ACR";
-            default -> mode.osdLabel;
-        };
-    }
-
     private FlightMode mode() {
         return DroneController.INSTANCE.launchMode(fpv);
     }

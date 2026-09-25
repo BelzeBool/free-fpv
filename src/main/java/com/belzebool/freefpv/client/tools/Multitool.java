@@ -24,11 +24,6 @@ public interface Multitool {
         return "";
     }
 
-    /** A few characters in the corner of the slot. */
-    default String badge() {
-        return "";
-    }
-
     /**
      * Built-in tools work on any server unless a Free FPV server leaves them out. Tools that need server support
      * (add-ons) appear only when the server lists them.

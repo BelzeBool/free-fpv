@@ -18,7 +18,6 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 //? if >=26.1 {
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -230,8 +229,7 @@ public final class ToolSlot {
             boolean right = mc.player.getMainArm().getOpposite() == HumanoidArm.LEFT;
             int x = right ? c.width() / 2 + 91 + 4 : c.width() / 2 - 91 - 4 - 24;
             if (mc.options.attackIndicator().get() == AttackIndicatorStatus.HOTBAR) x += right ? 22 : -22;
-            String key = Keys.TOOL_SLOT.getTranslatedKeyMessage().getString().toUpperCase(Locale.ROOT);
-            ToolHudPainter.slot(c, x, c.height() - 23, tool.icon(), isActive(), tool.badge(), key.length() <= 3 ? key : "");
+            ToolHudPainter.slot(c, x, c.height() - 23, tool.icon(), isActive());
             boolean survival = mc.gameMode != null && mc.gameMode.canHurtPlayer();
             ToolHudPainter.toolName(c, nameText, Math.min(1, nameTimer / 0.5), c.height() - (survival ? 59 : 45));
         }
