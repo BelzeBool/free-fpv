@@ -2,8 +2,10 @@ package com.belzebool.freefpv.platform;
 
 //? if fabric {
 import com.belzebool.freefpv.FreeFpv;
+import com.belzebool.freefpv.net.DroneInfoPayload;
 import com.belzebool.freefpv.net.DroneStatePayload;
 import com.belzebool.freefpv.net.OwnDronePayload;
+import com.belzebool.freefpv.net.ServerConfigPayload;
 import com.belzebool.freefpv.server.DroneServer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
@@ -24,15 +26,21 @@ public class FabricEntry implements ModInitializer {
         //? if >=26.1 {
         PayloadTypeRegistry.serverboundPlay().register(DroneStatePayload.TYPE, DroneStatePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(OwnDronePayload.TYPE, OwnDronePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(ServerConfigPayload.TYPE, ServerConfigPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(DroneInfoPayload.TYPE, DroneInfoPayload.CODEC);
         //?} else {
         /*PayloadTypeRegistry.playC2S().register(DroneStatePayload.TYPE, DroneStatePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(OwnDronePayload.TYPE, OwnDronePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(ServerConfigPayload.TYPE, ServerConfigPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(DroneInfoPayload.TYPE, DroneInfoPayload.CODEC);
         *///?}
         ServerPlayNetworking.registerGlobalReceiver(DroneStatePayload.TYPE,
             (payload, context) -> DroneServer.handleState(context.player(), payload));
 
         ServerTickEvents.END_SERVER_TICK.register(DroneServer::tick);
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> DroneServer.onServerStarting());
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> DroneServer.clear());
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> DroneServer.onJoin(handler.getPlayer()));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> DroneServer.remove(handler.getPlayer().getUUID()));
         //? if >=26.1 {
         ServerEntityEvents.ALLOW_LOAD.register((entity, level, reason, fromDisk) -> !DroneServer.isOrphan(entity));

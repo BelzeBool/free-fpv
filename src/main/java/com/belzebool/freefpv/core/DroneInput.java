@@ -18,6 +18,11 @@ public final class DroneInput {
 
     /** FPV only: when true {@link #throttle} is 0..1 motor output, otherwise it is a centred stick. */
     public boolean throttleAbsolute;
+    /**
+     * FPV Angle with a centred stick: the quad holds its height while the stick is centred and idles on the ground,
+     * so keyboard and gamepad pilots don't have to manage hover throttle.
+     */
+    public boolean altitudeHold;
 
     /** Direct rotations from the mouse this frame, in degrees. Applied without rate limiting. */
     public double mouseYawDeg;
@@ -28,5 +33,12 @@ public final class DroneInput {
         throttle = yaw = pitch = roll = gimbal = 0;
         mouseYawDeg = mousePitchDeg = mouseRollDeg = 0;
         throttleAbsolute = false;
+        altitudeHold = false;
+    }
+
+    /** True when any stick is away from centre, used to cancel autopilots like return to home. */
+    public boolean sticksActive(double threshold) {
+        return Math.abs(pitch) > threshold || Math.abs(roll) > threshold || Math.abs(yaw) > threshold
+            || Math.abs(throttle) > threshold;
     }
 }

@@ -25,6 +25,8 @@ public final class DroneConfig {
     public Controls controls = new Controls();
     public Gamepad gamepad = new Gamepad();
     public Compat compat = new Compat();
+    public Effects effects = new Effects();
+    public Tools tools = new Tools();
 
     public static final class General {
         /** Mode used the first time a drone is launched: CINE, NORMAL, SPORT, ANGLE or ACRO. */
@@ -41,6 +43,8 @@ public final class DroneConfig {
         public double crashScreenSeconds = 2.5;
         /** Propeller sound volume, 0..1. */
         public double soundVolume = 0.8;
+        /** Beeps for low battery and weak signal, and a click on mode changes. */
+        public boolean beeps = true;
     }
 
     public static final class Camera {
@@ -54,6 +58,12 @@ public final class DroneConfig {
         /** Analog-video look for FPV: scanlines, vignette, breakup near the range limit. */
         public boolean analogEffects = true;
         public boolean showOsd = true;
+        /** Camera shake from motors, wind and impacts, 0 = off, 1 = default. Gimbal cameras shake much less. */
+        public double shake = 1.0;
+        /** Camera drone field of view widens slightly with speed in Normal and Sport, 0 = off. */
+        public double speedFov = 1.0;
+        /** Short "connecting" transition when the video feed starts and ends. */
+        public boolean transitions = true;
     }
 
     public static final class Fpv {
@@ -82,14 +92,27 @@ public final class DroneConfig {
         public double gimbalSpeed = 60;
         /** Crashing into walls is impossible for camera drones; they stop like DJI obstacle sensing. */
         public boolean obstacleAvoidance = true;
+        /** Return to home climbs to at least this many blocks above the pilot before flying back. */
+        public double rthHeight = 12;
+        /** Start return to home by itself when the battery runs low, like DJI. */
+        public boolean autoRthOnLowBattery = true;
     }
 
     public static final class Controls {
         /** Multiplier on top of the vanilla mouse sensitivity while flying. */
         public double mouseSensitivity = 1.0;
         public boolean invertMouseY = false;
-        /** FPV keyboard throttle speed, full range per second. */
+        /** FPV keyboard throttle speed in Acro, full range per second. */
         public double keyboardThrottleSpeed = 0.9;
+        /**
+         * Angle mode on keyboard: Space/Shift ask for climb or descent and the quad holds its height when released.
+         * Tap for a gentle climb, hold to punch out. Off = raw throttle like Acro.
+         */
+        public boolean keyboardAltitudeHold = true;
+        /** Mouse smoothing for the camera drone (Cine is smoothest). 0 = raw mouse, 1 = default, 2 = extra smooth. */
+        public double mouseSmoothing = 1.0;
+        /** Show the controls panel for a few seconds after launch. The Controls help key toggles it any time. */
+        public boolean showHelpOnLaunch = true;
     }
 
     public static final class Gamepad {
@@ -111,6 +134,10 @@ public final class DroneConfig {
         public boolean rawInvertPitch = true, rawInvertThrottle = false;
         /** Hold this long (seconds) on Back/Share/Create to launch the drone from the controller. */
         public double launchHoldSeconds = 0.6;
+        /** Rumble on impacts and a light motor buzz in FPV (DualSense, DualShock, Xbox). */
+        public boolean rumble = true;
+        /** Colour the DualSense / DualShock light bar by flight mode and battery. */
+        public boolean lightBar = true;
     }
 
     public static final class Compat {
@@ -118,6 +145,26 @@ public final class DroneConfig {
         public String emote = "FPV Pilot";
         public boolean useEmotecraft = true;
         public boolean useFigura = true;
+    }
+
+    public static final class Effects {
+        /** Dust kicked up by prop wash near the ground, water spray, crash debris and smoke. */
+        public boolean particles = true;
+        /** Wind rush that grows with FPV speed. */
+        public boolean windSound = true;
+        /** Hands on the remote (and goggles for FPV) on the pilot's body, seen by everyone with the mod. */
+        public boolean pilotPose = true;
+    }
+
+    public static final class Tools {
+        /** Extra 10th slot next to the hotbar that holds the drone remotes and other multitools. */
+        public boolean enabled = true;
+        /** Scrolling past slot 9 (or before slot 1) lands on the tool slot. */
+        public boolean scrollIntoToolSlot = true;
+        /** Hold the Tools wheel key to pick a tool; releasing selects the hovered one. */
+        public boolean releaseToSelect = true;
+        /** Last selected tool, restored on start. */
+        public String selected = "freefpv:camera_remote";
     }
 
     public double speedFor(FlightMode mode) {
@@ -187,5 +234,7 @@ public final class DroneConfig {
         if (controls == null) controls = new Controls();
         if (gamepad == null) gamepad = new Gamepad();
         if (compat == null) compat = new Compat();
+        if (effects == null) effects = new Effects();
+        if (tools == null) tools = new Tools();
     }
 }

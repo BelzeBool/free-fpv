@@ -1,13 +1,14 @@
 package com.belzebool.freefpv.client;
 
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 
 import java.util.function.Supplier;
 
-/** Propeller whine: the bee loop pitched up, following a drone and its motor load. */
+/** Propeller whine (the bee loop pitched up) or another loop, following a drone and its motor load. */
 public final class DroneSound extends AbstractTickableSoundInstance {
     public record Sample(double x, double y, double z, float volume, float pitch) {
     }
@@ -15,7 +16,11 @@ public final class DroneSound extends AbstractTickableSoundInstance {
     private final Supplier<Sample> source;
 
     public DroneSound(Supplier<Sample> source) {
-        super(SoundEvents.BEE_LOOP, SoundSource.NEUTRAL, RandomSource.create());
+        this(SoundEvents.BEE_LOOP, source);
+    }
+
+    public DroneSound(SoundEvent sound, Supplier<Sample> source) {
+        super(sound, SoundSource.NEUTRAL, RandomSource.create());
         this.source = source;
         this.looping = true;
         this.delay = 0;
@@ -38,7 +43,7 @@ public final class DroneSound extends AbstractTickableSoundInstance {
         x = sample.x();
         y = sample.y();
         z = sample.z();
-        volume = Math.max(0.001f, sample.volume());
+        volume = Math.max(0.0001f, sample.volume());
         pitch = Math.max(0.5f, Math.min(2.0f, sample.pitch()));
     }
 

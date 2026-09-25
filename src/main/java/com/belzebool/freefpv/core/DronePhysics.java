@@ -18,6 +18,11 @@ public final class DronePhysics {
 
     public enum CrashReason { NONE, IMPACT, WATER, SIGNAL_LOST, BATTERY }
 
+    /** Camera drone autopilot, like DJI return to home: climb, turn and fly back, then land by the pilot. */
+    public enum Autopilot { NONE, RTH_CLIMB, RTH_CRUISE, RTH_DESCEND, LANDED }
+
+    public enum AutopilotAbort { NONE, OBSTACLE }
+
     public final Vector3d pos = new Vector3d();
     public final Vector3d prevPos = new Vector3d();
     public final Vector3d vel = new Vector3d();
@@ -26,7 +31,8 @@ public final class DronePhysics {
     /** Body angular rates, rad/s (x = pitch, y = yaw, z = roll). */
     public final Vector3d rates = new Vector3d();
     public final Vector3d home = new Vector3d();
-    public final Vector3d half = new Vector3d(0.16, 0.07, 0.16);
+    /** Collision box half extents. Tall enough that the camera always has room between the box and a wall. */
+    public final Vector3d half = new Vector3d(0.16, 0.09, 0.16);
 
     /** Yaw of the airframe around world up, radians; 0 faces north (-Z), positive turns left. */
     public double heading;
@@ -50,6 +56,25 @@ public final class DronePhysics {
     public CrashReason crashReason = CrashReason.NONE;
     public double lastImpactSpeed;
 
+    public Autopilot autopilot = Autopilot.NONE;
+    public AutopilotAbort autopilotAbort = AutopilotAbort.NONE;
+    private final Vector3d rthTarget = new Vector3d();
+    private double rthAltitude;
+    private double rthBestDistance;
+    private double rthStallTimer;
+
+    /** Strongest impact since {@link #takeImpact()} was last called; drives sounds, particles, rumble and shake. */
+    private double pendingImpact;
+    public final Vector3d impactPos = new Vector3d();
+    /** Direction from the drone into the surface it hit. */
+    public final Vector3d impactDir = new Vector3d();
+
+    /** Distance to whatever is below, probed a few times a second while altitude hold is on (up to 4 blocks). */
+    private double groundDistance = 4;
+    private int groundProbe;
+    private final Vector3d probe = new Vector3d();
+    private final Vector3d probeResult = new Vector3d();
+
     private double accumulator;
     private final Random random = new Random();
     private final Vector3d tmp = new Vector3d();
@@ -62,6 +87,7 @@ public final class DronePhysics {
         home.set(pos);
         vel.zero();
         rates.zero();
+        groundDistance = 4;
         this.heading = heading;
         prevHeading = heading;
         yawVelocity = 0;
@@ -77,7 +103,39 @@ public final class DronePhysics {
         crashed = false;
         crashReason = CrashReason.NONE;
         lastImpactSpeed = 0;
+        pendingImpact = 0;
+        autopilot = Autopilot.NONE;
+        autopilotAbort = AutopilotAbort.NONE;
         accumulator = 0;
+    }
+
+    /**
+     * Starts return to home: climb to a safe height, turn toward the pilot, fly back and land a couple of blocks in
+     * front of them. Stick input cancels it. Returns false when the drone can't fly home (crashed, FPV).
+     */
+    public boolean startReturnHome(Vector3d pilot, double rthHeight) {
+        if (crashed) return false;
+        double dx = pos.x - pilot.x, dz = pos.z - pilot.z;
+        double d = Math.sqrt(dx * dx + dz * dz);
+        double k = d > 1e-3 ? Math.min(1, 2.5 / d) : 0;
+        rthTarget.set(pilot.x + dx * k, pilot.y, pilot.z + dz * k);
+        rthAltitude = Math.max(pos.y, pilot.y + rthHeight);
+        rthBestDistance = d;
+        rthStallTimer = 0;
+        autopilotAbort = AutopilotAbort.NONE;
+        autopilot = d < 3.5 ? Autopilot.RTH_DESCEND : Autopilot.RTH_CLIMB;
+        return true;
+    }
+
+    public void cancelAutopilot() {
+        if (autopilot != Autopilot.LANDED) autopilot = Autopilot.NONE;
+    }
+
+    /** Returns the strongest impact speed since the last call and clears it. */
+    public double takeImpact() {
+        double v = pendingImpact;
+        pendingImpact = 0;
+        return v;
     }
 
     /** Syncs derived state when the pilot switches modes mid-air. */
@@ -107,8 +165,11 @@ public final class DronePhysics {
     private void applyMouse(DroneInput in, FlightMode mode, DroneConfig cfg) {
         if (crashed) return;
         if (!mode.isFpv()) {
-            heading -= Math.toRadians(in.mouseYawDeg);
-            prevHeading -= Math.toRadians(in.mouseYawDeg);
+            // The autopilot steers while returning home; the mouse still tilts the gimbal.
+            if (autopilot == Autopilot.NONE) {
+                heading -= Math.toRadians(in.mouseYawDeg);
+                prevHeading -= Math.toRadians(in.mouseYawDeg);
+            }
             gimbalTarget = clamp(gimbalTarget + in.mousePitchDeg, cfg.cameraDrone.gimbalMin, cfg.cameraDrone.gimbalMax);
         } else if (mode == FlightMode.ANGLE) {
             heading -= Math.toRadians(in.mouseYawDeg);
@@ -143,6 +204,10 @@ public final class DronePhysics {
         if (!motorsOn) {
             fallStep(dt);
         } else if (mode.isFpv()) {
+            if (in.altitudeHold && mode == FlightMode.ANGLE && (groundProbe++ & 7) == 0) {
+                world.collide(pos, half, probe.set(0, -4, 0), probeResult);
+                groundDistance = -probeResult.y;
+            }
             fpvStep(dt, in, mode, cfg);
         } else {
             cameraStep(dt, in, mode, cfg, pilot, maxRange);
@@ -162,14 +227,28 @@ public final class DronePhysics {
         double yawRate = Math.toRadians(cfg.yawRateFor(mode));
         double smoothing = mode == FlightMode.CINE ? 3 : mode == FlightMode.SPORT ? 10 : 6;
 
-        yawVelocity += (in.yaw * yawRate - yawVelocity) * (1 - Math.exp(-dt * smoothing));
-        heading -= yawVelocity * dt;
-
+        double targetX, targetZ, targetY;
+        if (autopilot != Autopilot.NONE) {
+            accel = Math.max(accel, cfg.cameraDrone.normalAccel);
+            // Home is flown at Normal speed whatever the mode, so Cine doesn't take forever.
+            double speed = Math.max(maxSpeed, cfg.cameraDrone.normalSpeed);
+            double rate = Math.max(yawRate, Math.toRadians(cfg.cameraDrone.normalYawRate));
+            autopilotStep(dt, speed, Math.max(climb, cfg.cameraDrone.normalClimb), rate);
+            yawVelocity = 0;
+            targetX = autopilotVel.x;
+            targetY = autopilotVel.y;
+            targetZ = autopilotVel.z;
+        } else {
+            yawVelocity += (in.yaw * yawRate - yawVelocity) * (1 - Math.exp(-dt * smoothing));
+            heading -= yawVelocity * dt;
+            double fx = -Math.sin(heading), fz = -Math.cos(heading);
+            double rx = Math.cos(heading), rz = -Math.sin(heading);
+            targetX = (fx * in.pitch + rx * in.roll) * maxSpeed;
+            targetZ = (fz * in.pitch + rz * in.roll) * maxSpeed;
+            targetY = in.throttle * climb;
+        }
         double fx = -Math.sin(heading), fz = -Math.cos(heading);
         double rx = Math.cos(heading), rz = -Math.sin(heading);
-        double targetX = (fx * in.pitch + rx * in.roll) * maxSpeed;
-        double targetZ = (fz * in.pitch + rz * in.roll) * maxSpeed;
-        double targetY = in.throttle * climb;
 
         if (cfg.general.batteryMinutes > 0 && battery < 0.05) targetY = Math.min(targetY, -1.2);
 
@@ -219,6 +298,70 @@ public final class DronePhysics {
         if (onGround && targetY <= 0 && vel.lengthSquared() < 0.01) motor += (0.15 - motor) * (1 - Math.exp(-dt * 6));
     }
 
+    private final Vector3d autopilotVel = new Vector3d();
+
+    /** Works out the velocity the return-to-home autopilot wants this step, in world space. */
+    private void autopilotStep(double dt, double maxSpeed, double climb, double yawRate) {
+        double dx = rthTarget.x - pos.x, dz = rthTarget.z - pos.z;
+        double dist = Math.sqrt(dx * dx + dz * dz);
+        autopilotVel.zero();
+        switch (autopilot) {
+            case RTH_CLIMB -> {
+                autopilotVel.y = climb;
+                if (pos.y >= rthAltitude - 0.3) {
+                    autopilot = Autopilot.RTH_CRUISE;
+                } else if (vel.y < climb * 0.3) {
+                    // Something above: cruise home at the current height instead.
+                    rthStallTimer += dt;
+                    if (rthStallTimer > 1.2) {
+                        rthAltitude = pos.y;
+                        rthStallTimer = 0;
+                        autopilot = Autopilot.RTH_CRUISE;
+                    }
+                } else {
+                    rthStallTimer = 0;
+                }
+            }
+            case RTH_CRUISE -> {
+                double want = Math.atan2(-dx, -dz);
+                double diff = wrapAngle(want - heading);
+                heading += clamp(diff, -yawRate * dt, yawRate * dt);
+                double align = clamp(1 - Math.abs(diff) / 1.2, 0, 1);
+                double speed = Math.min(maxSpeed, 0.8 * dist + 0.4) * align;
+                if (dist > 1e-3) {
+                    autopilotVel.x = dx / dist * speed;
+                    autopilotVel.z = dz / dist * speed;
+                }
+                autopilotVel.y = clamp((rthAltitude - pos.y) * 1.5, -climb, climb);
+                if (dist < 0.6) {
+                    autopilot = Autopilot.RTH_DESCEND;
+                } else if (dist < rthBestDistance - 0.4) {
+                    rthBestDistance = dist;
+                    rthStallTimer = 0;
+                } else if ((rthStallTimer += dt) > 4) {
+                    autopilot = Autopilot.NONE;
+                    autopilotAbort = AutopilotAbort.OBSTACLE;
+                }
+            }
+            case RTH_DESCEND -> {
+                autopilotVel.x = clamp(dx * 1.2, -1, 1);
+                autopilotVel.z = clamp(dz * 1.2, -1, 1);
+                autopilotVel.y = -Math.min(climb, 2.2);
+                if (onGround) autopilot = Autopilot.LANDED;
+            }
+            case LANDED -> autopilotVel.y = -0.5;
+            default -> {
+            }
+        }
+    }
+
+    private static double wrapAngle(double a) {
+        a %= Math.PI * 2;
+        if (a > Math.PI) a -= Math.PI * 2;
+        if (a < -Math.PI) a += Math.PI * 2;
+        return a;
+    }
+
     // ---------------------------------------------------------------- FPV quad
 
     private void fpvStep(double dt, DroneInput in, FlightMode mode, DroneConfig cfg) {
@@ -247,6 +390,16 @@ public final class DronePhysics {
         double command;
         if (in.throttleAbsolute) {
             command = clamp(in.throttle, 0, 1);
+        } else if (in.altitudeHold && mode == FlightMode.ANGLE) {
+            // The stick asks for a climb rate; centred holds height, full up punches out.
+            double climbTarget = in.throttle >= 0 ? in.throttle * 18 : in.throttle * 8;
+            // Soft landing: the closer the ground, the slower the descent, so holding Shift never slams it in.
+            climbTarget = Math.max(climbTarget, -(0.8 + groundDistance * 2.2));
+            if (onGround && climbTarget <= 0.1) {
+                command = 0.04;
+            } else {
+                command = clamp(hover * (1 + 2.5 * (climbTarget - vel.y) / GRAVITY), 0.02, 1);
+            }
         } else {
             command = in.throttle >= 0 ? hover + in.throttle * (1 - hover) : hover * (1 + in.throttle);
         }
@@ -309,11 +462,14 @@ public final class DronePhysics {
         double impact = 0;
         boolean camera = !mode.isFpv();
         double restitution = camera ? 0 : 0.3;
+        tmp.zero();
         if (Math.abs(allowed.x - motion.x) > 1e-7) {
             impact = Math.max(impact, Math.abs(vel.x));
+            tmp.x = Math.signum(motion.x);
             vel.x = -vel.x * restitution;
         }
         if (Math.abs(allowed.z - motion.z) > 1e-7) {
+            if (Math.abs(vel.z) > impact) tmp.set(0, 0, Math.signum(motion.z));
             impact = Math.max(impact, Math.abs(vel.z));
             vel.z = -vel.z * restitution;
         }
@@ -321,8 +477,16 @@ public final class DronePhysics {
             if (motion.y < 0) onGround = true;
             // Settling onto the ground at low speed is a landing, not an impact.
             double vy = Math.abs(vel.y);
-            if (!(motion.y < 0 && (wasOnGround || vy < 2.5))) impact = Math.max(impact, vy);
+            if (!(motion.y < 0 && (wasOnGround || vy < 2.5))) {
+                if (vy > impact) tmp.set(0, Math.signum(motion.y), 0);
+                impact = Math.max(impact, vy);
+            }
             vel.y = motion.y < 0 ? 0 : -vel.y * restitution;
+        }
+        if (impact > pendingImpact) {
+            pendingImpact = impact;
+            impactPos.set(pos).add(allowed);
+            impactDir.set(tmp);
         }
         pos.add(allowed);
 

@@ -7,9 +7,14 @@
     "ItemDisplayAccessor"
   ],
   "client": [
+    "AvatarRenderStateMixin",
+    "AvatarRendererMixin",
     "CameraMixin",
     "EntityRenderDispatcherMixin",
     "EntityTurnMixin",
+    "FirstPersonHandsAndItemsMixin",
+    "HudMixin",
+    "HumanoidModelMixin",
     "MinecraftMixin",
     "MouseHandlerMixin"
   ],

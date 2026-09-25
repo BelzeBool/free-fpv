@@ -3,6 +3,8 @@ package com.belzebool.freefpv.core.osd;
 import com.belzebool.freefpv.core.DronePhysics;
 import com.belzebool.freefpv.core.FlightMode;
 
+import java.util.List;
+
 /** Snapshot of everything the on-screen display shows. Filled by the drone controller every frame. */
 public final class OsdState {
     public FlightMode mode = FlightMode.NORMAL;
@@ -37,4 +39,19 @@ public final class OsdState {
     /** Seconds since the OSD appeared, drives blinking and noise. */
     public double time;
     public boolean analogEffects = true;
+    public boolean showOsd = true;
+
+    /** FPV: motor output that holds a hover, for the mark on the throttle bar. */
+    public double hoverThrottle = 0.2;
+    /** FPV Angle on keyboard/gamepad: the quad holds its height, shown as "ALT HOLD". */
+    public boolean altitudeHold;
+    public DronePhysics.Autopilot autopilot = DronePhysics.Autopilot.NONE;
+    /** Seconds since the video feed started; the first moments show a connecting transition. */
+    public double feedAge = 10;
+    public boolean transitions = true;
+    public String connectingText = "Connecting...";
+    /** Controls panel: pairs of {key, action}, faded by {@link #helpAlpha}. */
+    public List<String[]> help = List.of();
+    public String helpTitle = "";
+    public double helpAlpha;
 }
