@@ -106,8 +106,8 @@ final class DroneEffects {
      * burst of smoke from the lipo. Seen by the pilot and, with telemetry, by everyone around.
      */
     static void crashBurst(ClientLevel level, double x, double y, double z, boolean fpv) {
-        BlockState body = (fpv ? Blocks.BLACK_CONCRETE : Blocks.LIGHT_GRAY_CONCRETE).defaultBlockState();
-        BlockState trim = (fpv ? Blocks.ORANGE_CONCRETE : Blocks.GRAY_CONCRETE).defaultBlockState();
+        BlockState body = (fpv ? Blocks.COAL_BLOCK : Blocks.IRON_BLOCK).defaultBlockState();
+        BlockState trim = (fpv ? Blocks.TERRACOTTA : Blocks.SMOOTH_STONE).defaultBlockState();
         for (int i = 0; i < 18; i++) {
             BlockState piece = i % 4 == 0 ? trim : body;
             level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, piece), x, y + 0.1, z,
