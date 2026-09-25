@@ -101,6 +101,7 @@ public final class DroneController {
     private boolean autoRthDone;
     private double beepTimer;
     private int lightColor = -1;
+    private boolean wasOnGround = true;
 
     private final Vector3d cameraPos = new Vector3d();
     private final Vector3d center = new Vector3d();
@@ -216,6 +217,7 @@ public final class DroneController {
         autoRthDone = false;
         beepTimer = 1;
         lightColor = -1;
+        wasOnGround = true;
         shake.reset();
         helpVisible = config.controls.showHelpOnLaunch && launches < 2;
         helpAutoTimer = helpVisible ? 9 : 0;
@@ -347,8 +349,13 @@ public final class DroneController {
                 if (mode.isFpv() && crashTimer < 2.5) DroneEffects.crashSmoke(mc.level, physics.pos.x, physics.pos.y, physics.pos.z);
             } else {
                 DroneEffects.propWash(mc.level, physics.pos.x, physics.pos.y, physics.pos.z, physics.motor, mode.isFpv());
+                DroneEffects.rainOnProps(mc.level, physics.pos.x, physics.pos.y, physics.pos.z, physics.motor);
+                if (physics.onGround != wasOnGround && physics.motor > 0.1) {
+                    DroneEffects.groundPuff(mc.level, physics.pos.x, physics.pos.y, physics.pos.z);
+                }
             }
         }
+        wasOnGround = physics.onGround;
         beeps(0.05);
         updateLightBar();
         if (mode.isFpv() && !physics.crashed && physics.motor > 0.1) rumble(0, 0.04 + physics.motor * 0.1, 80);
@@ -451,6 +458,7 @@ public final class DroneController {
                     DroneEffects.splash(mc.level, physics.pos.x, physics.pos.y, physics.pos.z);
                 } else {
                     DroneEffects.impact(mc.level, physics.impactPos, physics.impactDir, Math.max(impact, 8), true, volume);
+                    DroneEffects.crashBurst(mc.level, physics.pos.x, physics.pos.y, physics.pos.z, mode.isFpv());
                 }
             }
         } else if (impact > 1.2) {

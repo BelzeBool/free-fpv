@@ -22,10 +22,25 @@ public final class ToolHudPainter {
     private ToolHudPainter() {
     }
 
-    /** The tool slot, drawn like a hotbar slot, with the hotbar's selection frame while it is active. */
-    public static void slot(OsdCanvas c, int x, int y, String icon, boolean active) {
+    /**
+     * The tool slot, drawn like a hotbar slot, with the hotbar's selection frame while it is active. {@code pop} is
+     * 0..1 right after the tool changes and bounces the icon like a picked-up item.
+     */
+    public static void slot(OsdCanvas c, int x, int y, String icon, boolean active, double pop) {
         c.sprite(SLOT, x + 1, y + 1, 22, 22);
-        if (icon != null) c.icon(icon, x + 4, y + 4);
+        if (icon != null) {
+            if (pop > 0.01) {
+                float squeeze = (float) (1 + pop * 0.4);
+                c.push();
+                c.translate(x + 12, y + 16);
+                c.scale(squeeze);
+                c.translate(-(x + 12), -(y + 16));
+                c.icon(icon, x + 4, y + 4);
+                c.pop();
+            } else {
+                c.icon(icon, x + 4, y + 4);
+            }
+        }
         if (active) c.sprite(SLOT_SELECTED, x, y, 24, 24);
     }
 
@@ -48,16 +63,23 @@ public final class ToolHudPainter {
         c.fill(0, 0, w, h, (int) (open * 0x50) << 24);
 
         int n = entries.size();
-        double r = ToolWheel.RADIUS * (0.85 + 0.15 * open);
+        // Slots fly out from the crosshair as the wheel opens; the hovered one lifts and grows.
+        double ease = 1 - Math.pow(1 - open, 3);
+        double r = ToolWheel.RADIUS * (0.25 + 0.75 * ease);
         for (int i = 0; i < n; i++) {
             Entry e = entries.get(i);
             double ang = Math.toRadians(ToolWheel.angleOf(i, n));
             int bx = cx + (int) Math.round(Math.sin(ang) * r);
             int by = cy - (int) Math.round(Math.cos(ang) * r);
-            c.sprite(WHEEL_SLOT, bx - 13, by - 13, 26, 26);
-            c.icon(e.icon(), bx - 8, by - 8);
-            if (i == hovered && !e.locked()) c.sprite(SLOT_SELECTED, bx - 14, by - 14, 28, 28);
-            if (i == current) c.fill(bx - 2, by + 15, bx + 2, by + 16, a << 24 | WHITE);
+            boolean hot = i == hovered && !e.locked();
+            c.push();
+            c.translate(bx, by);
+            if (hot) c.scale(1.2f);
+            c.sprite(WHEEL_SLOT, -13, -13, 26, 26, (float) open);
+            if (open > 0.35) c.icon(e.icon(), -8, -8);
+            if (hot) c.sprite(SLOT_SELECTED, -14, -14, 28, 28, (float) open);
+            c.pop();
+            if (i == current) c.fill(bx - 2, by + (hot ? 18 : 15), bx + 2, by + (hot ? 19 : 16), a << 24 | WHITE);
         }
 
         Entry shown = hovered >= 0 && hovered < n ? entries.get(hovered) : current >= 0 && current < n ? entries.get(current) : null;

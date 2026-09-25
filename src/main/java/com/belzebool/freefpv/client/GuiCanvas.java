@@ -95,6 +95,11 @@ public final class GuiCanvas implements OsdCanvas {
     }
 
     @Override
+    public void sprite(String id, int x, int y, int w, int h, float alpha) {
+        if (alpha > 0.02f) g.blitSprite(RenderPipelines.GUI_TEXTURED, SPRITES.computeIfAbsent(id, Identifier::parse), x, y, w, h, alpha);
+    }
+
+    @Override
     public void icon(String itemModel, int x, int y) {
         g.item(iconStack(itemModel), x, y);
     }

@@ -7,6 +7,7 @@ import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -97,6 +98,57 @@ final class DroneEffects {
             }
             level.playLocalSound(pos.x, pos.y, pos.z, net.minecraft.sounds.SoundEvents.ITEM_BREAK.value(), SoundSource.NEUTRAL,
                 volume * 0.8f, 1.3f + RANDOM.nextFloat() * 0.2f, false);
+        }
+    }
+
+    /**
+     * The drone breaking up: plastic and carbon shards in its own colours, a puff of dust and, for FPV quads, a
+     * burst of smoke from the lipo. Seen by the pilot and, with telemetry, by everyone around.
+     */
+    static void crashBurst(ClientLevel level, double x, double y, double z, boolean fpv) {
+        BlockState body = (fpv ? Blocks.BLACK_CONCRETE : Blocks.LIGHT_GRAY_CONCRETE).defaultBlockState();
+        BlockState trim = (fpv ? Blocks.ORANGE_CONCRETE : Blocks.GRAY_CONCRETE).defaultBlockState();
+        for (int i = 0; i < 18; i++) {
+            BlockState piece = i % 4 == 0 ? trim : body;
+            level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, piece), x, y + 0.1, z,
+                (RANDOM.nextDouble() - 0.5) * 0.5, 0.15 + RANDOM.nextDouble() * 0.3, (RANDOM.nextDouble() - 0.5) * 0.5);
+        }
+        for (int i = 0; i < 5; i++) {
+            level.addParticle(ParticleTypes.POOF, x + (RANDOM.nextDouble() - 0.5) * 0.4, y + 0.1,
+                z + (RANDOM.nextDouble() - 0.5) * 0.4, (RANDOM.nextDouble() - 0.5) * 0.05, 0.03, (RANDOM.nextDouble() - 0.5) * 0.05);
+        }
+        if (fpv) {
+            for (int i = 0; i < 4; i++) {
+                level.addParticle(ParticleTypes.LARGE_SMOKE, x, y + 0.2, z, (RANDOM.nextDouble() - 0.5) * 0.04, 0.05, (RANDOM.nextDouble() - 0.5) * 0.04);
+            }
+        }
+    }
+
+    /** A ring of dust when the drone lifts off or sets down. */
+    static void groundPuff(ClientLevel level, double x, double y, double z) {
+        Surface s = surfaceBelow(level, x, y, z);
+        if (s == null || y - s.y() > 0.6) return;
+        for (int i = 0; i < 14; i++) {
+            double a = i * Math.PI * 2 / 14 + RANDOM.nextDouble() * 0.3;
+            double vx = Math.cos(a) * 0.12, vz = Math.sin(a) * 0.12;
+            if (s.water()) {
+                level.addParticle(ParticleTypes.SPLASH, x + vx * 3, s.y() + 0.05, z + vz * 3, vx, 0.1, vz);
+            } else {
+                level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, s.block()), x + vx * 2, s.y() + 0.05, z + vz * 2, vx, 0.03, vz);
+                if (i % 3 == 0) level.addParticle(ParticleTypes.POOF, x + vx * 2, s.y() + 0.1, z + vz * 2, vx * 0.3, 0.01, vz * 0.3);
+            }
+        }
+    }
+
+    /** Rain hitting the spinning props bounces off as spray. Call once per client tick. */
+    static void rainOnProps(ClientLevel level, double x, double y, double z, double motor) {
+        if (motor < 0.15) return;
+        CURSOR.set(x, y + 1, z);
+        if (!level.isRainingAt(CURSOR)) return;
+        for (int i = 0; i < 2; i++) {
+            double a = RANDOM.nextDouble() * Math.PI * 2;
+            level.addParticle(ParticleTypes.SPLASH, x + Math.cos(a) * 0.25, y + 0.1, z + Math.sin(a) * 0.25,
+                Math.cos(a) * 0.1, 0.05, Math.sin(a) * 0.1);
         }
     }
 

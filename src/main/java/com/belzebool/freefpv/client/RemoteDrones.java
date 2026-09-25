@@ -30,6 +30,7 @@ final class RemoteDrones {
         double speed;
         boolean seen;
         boolean fpv;
+        boolean crashed;
         float volumeScale;
     }
 
@@ -77,8 +78,12 @@ final class RemoteDrones {
             if (config.effects.particles && !t.entity.isRemoved()) {
                 Info info = info(t.entity.getId());
                 double motor = info != null ? info.motor() : estimatedMotor(t);
-                if (info == null || !info.crashed()) {
+                boolean crashed = info != null && info.crashed();
+                if (crashed && !t.crashed) DroneEffects.crashBurst(mc.level, t.entity.getX(), t.entity.getY(), t.entity.getZ(), t.fpv);
+                t.crashed = crashed;
+                if (!crashed) {
                     DroneEffects.propWash(mc.level, t.entity.getX(), t.entity.getY(), t.entity.getZ(), motor, t.fpv);
+                    DroneEffects.rainOnProps(mc.level, t.entity.getX(), t.entity.getY(), t.entity.getZ(), motor);
                 } else {
                     DroneEffects.crashSmoke(mc.level, t.entity.getX(), t.entity.getY(), t.entity.getZ());
                 }

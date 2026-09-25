@@ -11,7 +11,9 @@ import net.minecraft.client.AttackIndicatorStatus;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -36,6 +38,8 @@ public final class ToolSlot {
     private boolean active;
     private String nameText = "";
     private double nameTimer;
+    private double pop;
+    private int lastHovered = -1;
     private long lastFrameNanos;
 
     private ToolSlot() {
@@ -100,6 +104,7 @@ public final class ToolSlot {
     public void showName() {
         Multitool tool = selected();
         if (tool == null) return;
+        pop = 1;
         String status = tool.status();
         nameText = tool.name().getString() + (status.isEmpty() ? "" : "  -  " + status);
         nameTimer = 2.2;
@@ -123,7 +128,10 @@ public final class ToolSlot {
         }
 
         boolean wheelKey = Keys.TOOL_WHEEL.isDown();
-        if (wheelKey && !wheel.isVisible()) wheel.show();
+        if (wheelKey && !wheel.isVisible()) {
+            wheel.show();
+            lastHovered = -1;
+        }
         if (!wheelKey && wheel.isVisible()) closeWheel(settings().releaseToSelect);
 
         if (wheel.isVisible()) {
@@ -157,9 +165,16 @@ public final class ToolSlot {
         List<Multitool> list = available();
         int hovered = wheel.hovered(list.size());
         wheel.hide();
-        if (pickHovered && hovered >= 0 && hovered < list.size()) select(list.get(hovered));
+        if (pickHovered && hovered >= 0 && hovered < list.size()) {
+            select(list.get(hovered));
+            click(1.0f);
+        }
         // A quick tap without pointing anywhere just jumps to the tool slot.
         setActive(true);
+    }
+
+    private static void click(float pitch) {
+        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, pitch));
     }
 
     /** Mouse movement while the wheel is open steers its cursor instead of the head. Returns true if used. */
@@ -215,6 +230,7 @@ public final class ToolSlot {
         lastFrameNanos = now;
         wheel.tick(dt);
         nameTimer = Math.max(0, nameTimer - dt);
+        pop = Math.max(0, pop - dt / 0.2);
 
         if (!enabled() || mc.player == null || mc.player.isSpectator() || DroneController.INSTANCE.isFlying()) return;
         //? if >=26.1 {
@@ -229,18 +245,23 @@ public final class ToolSlot {
             boolean right = mc.player.getMainArm().getOpposite() == HumanoidArm.LEFT;
             int x = right ? c.width() / 2 + 91 + 4 : c.width() / 2 - 91 - 4 - 24;
             if (mc.options.attackIndicator().get() == AttackIndicatorStatus.HOTBAR) x += right ? 22 : -22;
-            ToolHudPainter.slot(c, x, c.height() - 23, tool.icon(), isActive());
+            ToolHudPainter.slot(c, x, c.height() - 23, tool.icon(), isActive(), pop);
             boolean survival = mc.gameMode != null && mc.gameMode.canHurtPlayer();
             ToolHudPainter.toolName(c, nameText, Math.min(1, nameTimer / 0.5), c.height() - (survival ? 59 : 45));
         }
 
         if (wheel.isDrawn()) {
             List<Multitool> list = available();
+            int hovered = wheel.isVisible() ? wheel.hovered(list.size()) : -1;
+            if (hovered != lastHovered) {
+                if (hovered >= 0) click(1.8f);
+                lastHovered = hovered;
+            }
             List<ToolHudPainter.Entry> entries = new ArrayList<>(list.size());
             for (Multitool t : list) {
                 entries.add(new ToolHudPainter.Entry(t.name().getString(), t.description().getString(), t.icon(), t.status(), false));
             }
-            ToolHudPainter.wheel(c, entries, wheel.isVisible() ? wheel.hovered(list.size()) : -1, list.indexOf(tool),
+            ToolHudPainter.wheel(c, entries, hovered, list.indexOf(tool),
                 wheel.openAmount(), wheel.cursorX(), wheel.cursorY(),
                 Component.translatable("tool.freefpv.none").getString(),
                 Component.translatable("tool.freefpv.wheel_hint").getString());
