@@ -11,6 +11,7 @@ public final class ToolRegistry {
     static {
         register(new DroneRemoteTool(false));
         register(new DroneRemoteTool(true));
+        register(com.belzebool.freefpv.client.race.TrackEditorTool.INSTANCE);
     }
 
     private ToolRegistry() {

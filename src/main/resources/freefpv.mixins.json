@@ -4,7 +4,8 @@
   "compatibilityLevel": "${java}",
   "mixins": [
     "DisplayAccessor",
-    "ItemDisplayAccessor"
+    "ItemDisplayAccessor",
+    "TextDisplayAccessor"
   ],
   "client": [
     "AvatarRenderStateMixin",

@@ -13,7 +13,7 @@ import java.util.List;
  * lists, so servers can switch tools off or offer their own; {@code maxRange} caps the flight range (0 = no cap).
  */
 public record ServerConfigPayload(int protocol, float maxRange, List<String> tools) implements CustomPacketPayload {
-    public static final int PROTOCOL = 1;
+    public static final int PROTOCOL = 2;
     public static final Type<ServerConfigPayload> TYPE = new Type<>(FreeFpv.id("server_config"));
     public static final StreamCodec<FriendlyByteBuf, ServerConfigPayload> CODEC =
         CustomPacketPayload.codec(ServerConfigPayload::write, ServerConfigPayload::new);

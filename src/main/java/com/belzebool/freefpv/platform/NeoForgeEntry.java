@@ -4,9 +4,14 @@ package com.belzebool.freefpv.platform;
 /*import com.belzebool.freefpv.FreeFpv;
 import com.belzebool.freefpv.net.DroneInfoPayload;
 import com.belzebool.freefpv.net.DroneStatePayload;
+import com.belzebool.freefpv.net.GhostPayload;
+import com.belzebool.freefpv.net.RacePayload;
+import com.belzebool.freefpv.net.TrackEditPayload;
+import com.belzebool.freefpv.net.TracksPayload;
 import com.belzebool.freefpv.net.OwnDronePayload;
 import com.belzebool.freefpv.net.ServerConfigPayload;
 import com.belzebool.freefpv.server.DroneServer;
+import com.belzebool.freefpv.server.race.RaceServer;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.IEventBus;
@@ -31,12 +36,14 @@ public class NeoForgeEntry {
     public NeoForgeEntry(IEventBus modBus, ModContainer container) {
         modBus.addListener(NeoForgeEntry::registerPayloads);
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> DroneServer.tick(event.getServer()));
-        NeoForge.EVENT_BUS.addListener((ServerStartingEvent event) -> DroneServer.onServerStarting());
+        NeoForge.EVENT_BUS.addListener((ServerStartingEvent event) -> DroneServer.onServerStarting(event.getServer()));
         NeoForge.EVENT_BUS.addListener((ServerStoppingEvent event) -> DroneServer.clear());
         NeoForge.EVENT_BUS.addListener((PlayerEvent.PlayerLoggedInEvent event) -> {
             if (event.getEntity() instanceof ServerPlayer player) DroneServer.onJoin(player);
         });
-        NeoForge.EVENT_BUS.addListener((PlayerEvent.PlayerLoggedOutEvent event) -> DroneServer.remove(event.getEntity().getUUID()));
+        NeoForge.EVENT_BUS.addListener((PlayerEvent.PlayerLoggedOutEvent event) -> {
+            if (event.getEntity() instanceof ServerPlayer player) DroneServer.onLeave(player);
+        });
         NeoForge.EVENT_BUS.addListener((EntityJoinLevelEvent event) -> {
             if (!event.getLevel().isClientSide() && DroneServer.isOrphan(event.getEntity())) event.setCanceled(true);
         });
@@ -44,9 +51,20 @@ public class NeoForgeEntry {
     }
 
     private static void registerPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("2").optional();
+        PayloadRegistrar registrar = event.registrar("3").optional();
         registrar.playToServer(DroneStatePayload.TYPE, DroneStatePayload.CODEC,
             (payload, context) -> DroneServer.handleState((ServerPlayer) context.player(), payload));
+        registrar.playToServer(TrackEditPayload.TYPE, TrackEditPayload.CODEC,
+            (payload, context) -> RaceServer.onEdit((ServerPlayer) context.player(), payload));
+        //? if >=1.21.9 {
+        registrar.playToClient(TracksPayload.TYPE, TracksPayload.CODEC);
+        registrar.playToClient(RacePayload.TYPE, RacePayload.CODEC);
+        registrar.playToClient(GhostPayload.TYPE, GhostPayload.CODEC);
+        //?} else {
+        /^registrar.playToClient(TracksPayload.TYPE, TracksPayload.CODEC, (payload, context) -> com.belzebool.freefpv.client.race.ClientRace.onTracks(payload));
+        registrar.playToClient(RacePayload.TYPE, RacePayload.CODEC, (payload, context) -> com.belzebool.freefpv.client.race.ClientRace.onRace(payload));
+        registrar.playToClient(GhostPayload.TYPE, GhostPayload.CODEC, (payload, context) -> com.belzebool.freefpv.client.race.ClientRace.onGhost(payload));
+        ^///?}
         //? if >=1.21.9 {
         registrar.playToClient(OwnDronePayload.TYPE, OwnDronePayload.CODEC);
         //?} else

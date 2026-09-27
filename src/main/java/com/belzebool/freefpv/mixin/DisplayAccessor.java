@@ -1,6 +1,7 @@
 package com.belzebool.freefpv.mixin;
 
 import com.mojang.math.Transformation;
+import net.minecraft.util.Brightness;
 import net.minecraft.world.entity.Display;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
@@ -28,4 +29,10 @@ public interface DisplayAccessor {
 
     @Invoker("setShadowStrength")
     void freefpv$setShadowStrength(float strength);
+
+    @Invoker("setBrightnessOverride")
+    void freefpv$setBrightnessOverride(Brightness brightness);
+
+    @Invoker("setBillboardConstraints")
+    void freefpv$setBillboardConstraints(Display.BillboardConstraints constraints);
 }

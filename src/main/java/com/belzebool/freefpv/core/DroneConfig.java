@@ -27,6 +27,7 @@ public final class DroneConfig {
     public Compat compat = new Compat();
     public Effects effects = new Effects();
     public Tools tools = new Tools();
+    public Race race = new Race();
 
     public static final class General {
         /** Mode used the first time a drone is launched: CINE, NORMAL, SPORT, ANGLE or ACRO. */
@@ -156,6 +157,23 @@ public final class DroneConfig {
         public boolean pilotPose = true;
     }
 
+    public static final class Race {
+        /** Coloured LED trail behind your drone while racing. */
+        public boolean trail = true;
+        /** Trail colour, hex RGB. */
+        public String trailColor = "3DFF6A";
+        /** Your best lap flies alongside as a translucent ghost drone. */
+        public boolean ghost = true;
+
+        public int trailRgb() {
+            try {
+                return Integer.parseInt(trailColor.replace("#", "").trim(), 16) & 0xFFFFFF;
+            } catch (NumberFormatException e) {
+                return 0x3DFF6A;
+            }
+        }
+    }
+
     public static final class Tools {
         /** Extra 10th slot next to the hotbar that holds the drone remotes and other multitools. */
         public boolean enabled = true;
@@ -227,6 +245,7 @@ public final class DroneConfig {
 
     /** Sections missing from an older file come back as null from Gson. */
     private void fillMissing() {
+        if (race == null) race = new Race();
         if (general == null) general = new General();
         if (camera == null) camera = new Camera();
         if (fpv == null) fpv = new Fpv();

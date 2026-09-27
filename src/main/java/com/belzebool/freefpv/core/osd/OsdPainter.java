@@ -28,6 +28,7 @@ public final class OsdPainter {
                 camera(c, s);
             }
         }
+        if (!s.crashed && (s.showOsd || s.raceActive)) race(c, s);
         if (s.crashed) crashOverlay(c, s);
         if (s.helpAlpha > 0.01 && !s.help.isEmpty()) help(c, s);
         if (s.transitions && s.feedAge < 0.9) transition(c, s);
@@ -529,6 +530,78 @@ public final class OsdPainter {
         c.scale(2);
         c.centeredText(title, 0, 0, s.mode.isFpv() ? WHITE : RED, true);
         c.pop();
+    }
+
+    // ------------------------------------------------------------------ racing
+
+    private void race(OsdCanvas c, OsdState s) {
+        int w = c.width(), h = c.height(), cx = w / 2;
+        if (s.targetVisible) target(c, s);
+
+        if (s.raceActive) {
+            int y = s.mode.isFpv() ? 28 : 36;
+            String lap = s.lapLabel + " " + s.raceLap + "/" + s.raceLaps;
+            String clock = com.belzebool.freefpv.core.race.RaceTime.format(s.raceFinished ? s.raceTotalTime : s.raceLapTime);
+            int boxW = Math.max(120, c.textWidth(lap) + c.textWidth(clock) * 3 / 2 + 24);
+            c.fill(cx - boxW / 2, y - 3, cx + boxW / 2, y + 26, 0x80000000);
+            c.text(lap, cx - boxW / 2 + 6, y + 2, YELLOW, true);
+            c.push();
+            c.translate(cx + boxW / 2f - 6, y);
+            c.scale(1.5f);
+            c.rightText(clock, 0, 0, WHITE, true);
+            c.pop();
+            String info = s.gateLabel + " " + Math.max(1, s.raceGate) + "/" + s.raceGates;
+            if (s.raceBestLap > 0) info += "   " + s.bestLabel + " " + com.belzebool.freefpv.core.race.RaceTime.format(s.raceBestLap);
+            c.centeredText(info, cx, y + 16, DIM, true);
+        }
+
+        if (s.raceBannerAlpha > 0.02 && !(s.raceBanner.isEmpty() && s.raceBannerSub.isEmpty())) {
+            int a = (int) (Math.min(1, s.raceBannerAlpha) * 255);
+            int color = (s.raceBannerColor & 0xFFFFFF) | Math.max(4, a) << 24;
+            int y = h / 2 - 56;
+            if (!s.raceBanner.isEmpty()) {
+                c.push();
+                c.translate(cx, y);
+                c.scale(2);
+                c.centeredText(s.raceBanner, 0, 0, color, true);
+                c.pop();
+                y += 22;
+            }
+            if (!s.raceBannerSub.isEmpty()) c.centeredText(s.raceBannerSub, cx, y, color, true);
+        }
+    }
+
+    /** Marker on the next gate, or an arrow at the screen edge pointing to it. */
+    private void target(OsdCanvas c, OsdState s) {
+        int w = c.width(), h = c.height(), cx = w / 2, cy = h / 2;
+        int color = s.raceActive ? GREEN : 0xE0FFFFFF;
+        String dist = String.format(Locale.ROOT, "%.0fm", s.targetDistance);
+        boolean onScreen = s.targetInFront && Math.abs(s.targetX) < 0.92 && Math.abs(s.targetY) < 0.88;
+        if (onScreen) {
+            int x = cx + (int) Math.round(s.targetX * w / 2), y = cy - (int) Math.round(s.targetY * h / 2);
+            int r = 6;
+            c.fill(x - r, y - r, x - r + 3, y - r + 1, color);
+            c.fill(x - r, y - r, x - r + 1, y - r + 3, color);
+            c.fill(x + r - 3, y - r, x + r, y - r + 1, color);
+            c.fill(x + r - 1, y - r, x + r, y - r + 3, color);
+            c.fill(x - r, y + r - 1, x - r + 3, y + r, color);
+            c.fill(x - r, y + r - 3, x - r + 1, y + r, color);
+            c.fill(x + r - 3, y + r - 1, x + r, y + r, color);
+            c.fill(x + r - 1, y + r - 3, x + r, y + r, color);
+            c.centeredText(dist, x, y + r + 3, color, true);
+            return;
+        }
+        double angle = Math.atan2(-s.targetY, s.targetX);
+        double rx = w / 2.0 - 26, ry = h / 2.0 - 30;
+        double ex = Math.cos(angle), ey = Math.sin(angle);
+        double k = 1 / Math.max(Math.abs(ex) / rx, Math.abs(ey) / ry);
+        int x = cx + (int) Math.round(ex * k), y = cy + (int) Math.round(ey * k);
+        c.push();
+        c.translate(x, y);
+        c.rotate((float) angle);
+        for (int i = 0; i < 7; i++) c.fill(i, -(7 - i), i + 1, 7 - i, color);
+        c.pop();
+        c.centeredText(dist, x - (int) Math.round(ex * 14), y - (int) Math.round(ey * 14) - 4, color, true);
     }
 
     private static String time(double seconds) {

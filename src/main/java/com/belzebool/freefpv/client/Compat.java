@@ -23,6 +23,21 @@ public final class Compat {
         //return mc.screen == null && mc.getOverlay() == null;
     }
 
+    public static void setScreen(Minecraft mc, Screen screen) {
+        //? if >=26.2 {
+        mc.gui.setScreen(screen);
+        //?} else
+        //mc.setScreen(screen);
+    }
+
+    /** Short message above the hotbar. */
+    public static void actionBar(net.minecraft.world.entity.player.Player player, net.minecraft.network.chat.Component message) {
+        //? if >=26.1 {
+        player.sendOverlayMessage(message);
+        //?} else
+        //player.displayClientMessage(message, true);
+    }
+
     public static boolean hudHidden(Minecraft mc) {
         //? if >=26.2 {
         return mc.gui.hud.isHidden();

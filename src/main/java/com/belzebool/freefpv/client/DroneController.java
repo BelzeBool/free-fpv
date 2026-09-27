@@ -3,6 +3,8 @@ package com.belzebool.freefpv.client;
 import com.belzebool.freefpv.client.tools.DroneRemoteTool;
 import com.belzebool.freefpv.client.tools.Multitool;
 import com.belzebool.freefpv.client.tools.ToolSlot;
+import com.belzebool.freefpv.client.race.ClientRace;
+import com.belzebool.freefpv.client.race.TrackEditorTool;
 import com.belzebool.freefpv.compat.EmotecraftCompat;
 import com.belzebool.freefpv.core.CameraShake;
 import com.belzebool.freefpv.core.DroneConfig;
@@ -263,6 +265,7 @@ public final class DroneController {
         }
         savedInput = null;
         pilot = null;
+        ClientRace.onFlightEnded();
         exitFade = config.camera.transitions ? 0.35 : 0;
         EmotecraftCompat.stop();
         restoreLightBar();
@@ -274,6 +277,7 @@ public final class DroneController {
     /** Called when the world or player object went away underneath us (disconnect, dimension change). */
     private void abandon(Minecraft mc) {
         flying = false;
+        ClientRace.onFlightEnded();
         pilot = null;
         savedInput = null;
         EmotecraftCompat.stop();
@@ -356,6 +360,8 @@ public final class DroneController {
             }
         }
         wasOnGround = physics.onGround;
+        ClientRace.flyingTick(mc, physics.pos, config.race.trail && !physics.crashed, config.race.trailRgb(),
+            config.race.ghost, Math.round(physics.clock * 1000));
         beeps(0.05);
         updateLightBar();
         if (mode.isFpv() && !physics.crashed && physics.motor > 0.1) rumble(0, 0.04 + physics.motor * 0.1, 80);
@@ -366,7 +372,7 @@ public final class DroneController {
             Platform.INSTANCE.sendToServer(new DroneStatePayload(true, mode.isFpv(),
                 physics.pos.x, physics.pos.y, physics.pos.z,
                 (float) physics.att.x, (float) physics.att.y, (float) physics.att.z, (float) physics.att.w,
-                (float) physics.motor, flags));
+                (float) physics.motor, flags, (int) Math.round(physics.clock * 1000)));
         }
     }
 
@@ -378,6 +384,7 @@ public final class DroneController {
         boolean launch = false;
         while (Keys.LAUNCH.consumeClick()) launch = true;
         if (mc.player == null || mc.level == null) return;
+        if (TrackEditorTool.INSTANCE.isHeld()) TrackEditorTool.INSTANCE.tick(mc);
 
         if (config.gamepad.enabled && screen(mc) == null && gamepad.poll() && gamepad.kind() == Gamepad.Kind.GAMEPAD) {
             if (gamepad.down(Gamepad.BACK)) {
@@ -442,6 +449,7 @@ public final class DroneController {
         if (helpAutoTimer > 0 && (helpAutoTimer -= dt) <= 0) helpVisible = false;
         helpAlpha += ((helpVisible ? 1 : 0) - helpAlpha) * (1 - Math.exp(-dt * 8));
         updateOsd();
+        ClientRace.fillOsd(osd, Math.round(physics.clock * 1000), cameraPos, cameraRot, verticalFov, aspect, dt);
     }
 
     /** Sounds, debris, camera shake and rumble for knocks and crashes. */

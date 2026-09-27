@@ -3,6 +3,10 @@ package com.belzebool.freefpv.platform;
 //? if neoforge {
 /*import com.belzebool.freefpv.FreeFpv;
 import com.belzebool.freefpv.client.DroneController;
+import com.belzebool.freefpv.client.race.ClientRace;
+import com.belzebool.freefpv.net.GhostPayload;
+import com.belzebool.freefpv.net.RacePayload;
+import com.belzebool.freefpv.net.TracksPayload;
 import com.belzebool.freefpv.client.GuiCanvas;
 import com.belzebool.freefpv.client.Keys;
 import com.belzebool.freefpv.client.ServerFeatures;
@@ -50,6 +54,9 @@ public class NeoForgeClientEntry {
         });
         modBus.addListener((RegisterClientPayloadHandlersEvent event) -> {
             event.register(OwnDronePayload.TYPE, NeoForgeClientEntry::handleOwnDrone);
+            event.register(TracksPayload.TYPE, (payload, context) -> ClientRace.onTracks(payload));
+            event.register(RacePayload.TYPE, (payload, context) -> ClientRace.onRace(payload));
+            event.register(GhostPayload.TYPE, (payload, context) -> ClientRace.onGhost(payload));
             event.register(ServerConfigPayload.TYPE, (payload, context) -> ServerFeatures.accept(payload));
             event.register(DroneInfoPayload.TYPE, (payload, context) -> DroneController.INSTANCE.onDroneInfo(payload));
         });

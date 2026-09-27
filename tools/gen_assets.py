@@ -42,6 +42,10 @@ PALETTES = {
     "led_red": hexes(0xFFC4BE, 0xFF4A3D, 0xE0281C, 0xB0180F),
     "led_green": hexes(0xC8FFC8, 0x3CEB5A, 0x1FC240, 0x10902C),
     "led_cyan": hexes(0xC8FAFF, 0x3CD8F0, 0x1FB0CC, 0x10849C),
+    "white": hexes(0xFFFFFF, 0xEDEDED, 0xCFCFCF, 0xA8A8A8),
+    "magenta": hexes(0xFF8AE8, 0xE848C8, 0xB82C9C, 0x801C6C),
+    "led_magenta": hexes(0xFFD0F6, 0xFF5CE0, 0xE030C0, 0xA81C8C),
+    "led_yellow": hexes(0xFFF6C0, 0xFFE040, 0xE0B820, 0xA88410),
 }
 
 FACES = ("north", "south", "east", "west", "up", "down")
@@ -452,6 +456,133 @@ def remote_fpv():
     return m
 
 
+# --------------------------------------------------------------------------------------------- race gates
+# Authored at half size (one model unit = 1/8 block); the game scales them up two times. The base is y = 0,
+# the opening is centred on x = 8 and faces south (travel direction +Z).
+
+def frame(m, x0, x1, y0, y1, t, mat, led, z0=7, z1=9):
+    """Rectangular gate frame of thickness t around the opening x0..x1, y0..y1, with a glowing inner strip."""
+    m.box([x0 - t, y0 - t, z0], [x0, y1 + t, z1], mat)
+    m.box([x1, y0 - t, z0], [x1 + t, y1 + t, z1], mat)
+    m.box([x0, y1, z0], [x1, y1 + t, z1], mat)
+    m.box([x0, y0 - t, z0], [x1, y0, z1], mat)
+    if led:
+        m.box([x0, y1 - 0.5, 7.75], [x1, y1, 8.25], led, emissive=True, rim=False)
+        m.box([x0, y0, 7.75], [x0 + 0.5, y1 - 0.5, 8.25], led, emissive=True, rim=False)
+        m.box([x1 - 0.5, y0, 7.75], [x1, y1 - 0.5, 8.25], led, emissive=True, rim=False)
+
+
+def feet(m, xs, mat="black"):
+    for x in xs:
+        m.box([x - 1.5, 0, 5], [x + 1.5, 1, 11], mat)
+
+
+def gate_standard():
+    m = Model("gate_standard")
+    lift, w, h = 2.8, 16, 16
+    x0, x1 = 8 - w / 2, 8 + w / 2
+    m.box([x0 - 2, 0, 7], [x0, lift, 9], "black")
+    m.box([x1, 0, 7], [x1 + 2, lift, 9], "black")
+    frame(m, x0, x1, lift, lift + h, 2, "orange", "led_cyan")
+    for y in (lift + 4, lift + 10):
+        m.box([x0 - 2.1, y, 6.9], [x0 + 0.1, y + 2, 9.1], "black", rim=False)
+        m.box([x1 - 0.1, y, 6.9], [x1 + 2.1, y + 2, 9.1], "black", rim=False)
+    feet(m, (x0 - 1, x1 + 1))
+    return m
+
+
+def gate_start():
+    m = Model("gate_start")
+    lift, w, h = 2.8, 24, 17.6
+    x0, x1 = 8 - w / 2, 8 + w / 2
+    m.box([x0 - 2, 0, 7], [x0, lift, 9], "black")
+    m.box([x1, 0, 7], [x1 + 2, lift, 9], "black")
+    frame(m, x0, x1, lift, lift + h, 2, "white", "led_green")
+    top = lift + h + 2
+    # checkered banner across the top
+    cells = 8
+    cw = (w + 4) / cells
+    for i in range(cells):
+        for row in range(2):
+            mat = "black" if (i + row) % 2 == 0 else "white"
+            m.box([x0 - 2 + i * cw, top + row * 1.5, 7.5], [x0 - 2 + (i + 1) * cw, top + (row + 1) * 1.5, 8.5], mat, rim=False)
+    # start lights
+    for i, led in enumerate(("led_red", "led_red", "led_yellow", "led_green")):
+        x = 8 - 4.5 + i * 3
+        m.box([x - 1, top + 3, 7.5], [x + 1, top + 4.6, 8.5], "black")
+        m.box([x - 0.6, top + 3.3, 7.3], [x + 0.6, top + 4.3, 7.5], led, emissive=True, rim=False)
+    feet(m, (x0 - 1, x1 + 1))
+    return m
+
+
+def gate_arch():
+    m = Model("gate_arch")
+    lift, w, h = 1.6, 20.8, 27.2
+    x0, x1 = 8 - w / 2, 8 + w / 2
+    m.box([x0 - 2, 0, 7], [x0, lift, 9], "black")
+    m.box([x1, 0, 7], [x1 + 2, lift, 9], "black")
+    frame(m, x0, x1, lift, lift + h, 1.5, "magenta", "led_magenta")
+    # rounded shoulders
+    for side, x in ((-1, x0), (1, x1)):
+        m.box([x - 3 if side < 0 else x + 1.5 - 1.5, lift + h - 3, 7], [x + 3 if side < 0 else x + 1.5 + 1.5, lift + h + 1.5, 9], "magenta",
+              rot={"origin": [x, lift + h, 8], "axis": "z", "angle": 45 * side * -1})
+    feet(m, (x0 - 1, x1 + 1))
+    return m
+
+
+def gate_flag():
+    """Feather flag on a pole: fly past it on either side."""
+    m = Model("gate_flag")
+    m.box([6.5, 0, 6.5], [9.5, 1, 9.5], "black")
+    m.box([7.6, 1, 7.6], [8.4, 30, 8.4], "black", rim=False)
+    heights = [(5, 11), (11, 18), (18, 24), (24, 29)]
+    widths = [4.5, 5.5, 5.5, 4]
+    for (y0, y1), wd in zip(heights, widths):
+        m.box([8.4, y0, 7.8], [8.4 + wd, y1, 8.2], "yellow", decals={})
+    m.box([8.4, 5, 7.7], [9.2, 29, 8.3], "red", rim=False)
+    m.box([8.4 + 0.5, 12, 7.75], [8.4 + 4.5, 13, 8.25], "led_yellow", emissive=True, rim=False)
+    return m
+
+
+def gate_dive():
+    """Flat gate on four short posts; the pilot dives down through it. Centre of the opening is the entity position."""
+    m = Model("gate_dive")
+    x0, x1, z0, z1 = 0, 16, 0, 16
+    t = 2
+    m.box([x0 - t, 7.5, z0 - t], [x1 + t, 8.5, z0], "orange")
+    m.box([x0 - t, 7.5, z1], [x1 + t, 8.5, z1 + t], "orange")
+    m.box([x0 - t, 7.5, z0], [x0, 8.5, z1], "orange")
+    m.box([x1, 7.5, z0], [x1 + t, 8.5, z1], "orange")
+    m.box([x0, 8.3, z0], [x1, 8.6, z0 + 0.5], "led_cyan", emissive=True, rim=False)
+    m.box([x0, 8.3, z1 - 0.5], [x1, 8.6, z1], "led_cyan", emissive=True, rim=False)
+    m.box([x0, 8.3, z0 + 0.5], [x0 + 0.5, 8.6, z1 - 0.5], "led_cyan", emissive=True, rim=False)
+    m.box([x1 - 0.5, 8.3, z0 + 0.5], [x1, 8.6, z1 - 0.5], "led_cyan", emissive=True, rim=False)
+    for x in (x0 - 1, x1 + 1):
+        for z in (z0 - 1, z1 + 1):
+            m.box([x - 0.5, 0, z - 0.5], [x + 0.5, 7.5, z + 0.5], "black", rim=False)
+    return m
+
+
+def ghost(name):
+    """Translucent cyan copy of a baked drone: the pilot's best lap flying alongside."""
+    src = Image.open(os.path.join(TEX_ITEM, name + ".png")).convert("RGBA")
+    px = np.array(src).astype(np.float32)
+    lum = px[..., :3].mean(axis=2, keepdims=True) / 255
+    tint = np.array([90, 220, 255], np.float32)
+    px[..., :3] = np.clip(tint * (0.55 + lum * 0.6), 0, 255)
+    px[..., 3] = np.where(px[..., 3] > 0, 120, 0)
+    Image.fromarray(px.astype(np.uint8), "RGBA").save(os.path.join(TEX_ITEM, name + "_ghost.png"))
+    with open(os.path.join(ROOT, "models", "item", name + ".json")) as f:
+        data = json.load(f)
+    data["textures"]["a"] = "freefpv:item/" + name + "_ghost"
+    data["textures"]["particle"] = "freefpv:item/" + name + "_ghost"
+    for el in data["elements"]:
+        el.pop("light_emission", None)
+    write_json(os.path.join(ROOT, "models", "item", name + "_ghost.json"), data)
+    write_json(os.path.join(ROOT, "items", name + "_ghost.json"),
+               {"model": {"type": "minecraft:model", "model": "freefpv:item/" + name + "_ghost"}})
+
+
 # --------------------------------------------------------------------------------------------- GUI sprites
 
 def gui_sprites():
@@ -496,8 +627,11 @@ def main():
     prop_frames(os.path.join(TEX_ITEM, "prop_camera.png"), 2, (225, 225, 225), (190, 190, 190))
     prop_frames(os.path.join(TEX_ITEM, "prop_fpv.png"), 3, (60, 60, 66), (40, 40, 46))
     blink_frames(os.path.join(TEX_ITEM, "led_status.png"), (60, 235, 90), "1100000011000000000000")
-    for model in (camera_drone(), fpv_drone(), remote_camera(), remote_fpv()):
+    for model in (camera_drone(), fpv_drone(), remote_camera(), remote_fpv(),
+                  gate_standard(), gate_start(), gate_arch(), gate_flag(), gate_dive()):
         model.bake()
+    ghost("drone_fpv")
+    ghost("drone_camera")
     gui_sprites()
 
 

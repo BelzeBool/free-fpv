@@ -49,6 +49,8 @@ public final class DronePhysics {
     public double motor;
     public double battery = 1;
     public double flightTime;
+    /** Simulated seconds since launch, crashed or not. Race timing runs on this clock. */
+    public double clock;
     public double signal = 1;
     public double distanceToPilot;
     public boolean onGround;
@@ -98,6 +100,7 @@ public final class DronePhysics {
         motor = 0;
         battery = 1;
         flightTime = 0;
+        clock = 0;
         signal = 1;
         onGround = true;
         crashed = false;
@@ -188,6 +191,7 @@ public final class DronePhysics {
         prevAtt.set(att);
         prevHeading = heading;
         prevGimbal = gimbal;
+        clock += dt;
 
         distanceToPilot = Math.sqrt(sq(pos.x - pilot.x) + sq(pos.z - pilot.z) + sq(pos.y - pilot.y));
         signal = 1 - smoothstep(maxRange * 0.75, maxRange, distanceToPilot);

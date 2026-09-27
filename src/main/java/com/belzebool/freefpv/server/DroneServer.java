@@ -8,6 +8,7 @@ import com.belzebool.freefpv.net.ServerConfigPayload;
 import com.belzebool.freefpv.mixin.DisplayAccessor;
 import com.belzebool.freefpv.mixin.ItemDisplayAccessor;
 import com.belzebool.freefpv.platform.Platform;
+import com.belzebool.freefpv.server.race.RaceServer;
 import com.mojang.math.Transformation;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.MinecraftServer;
@@ -66,18 +67,21 @@ public final class DroneServer {
         return config;
     }
 
-    public static void onServerStarting() {
+    public static void onServerStarting(MinecraftServer server) {
         config = null;
         config();
+        RaceServer.onServerStarting(server);
     }
 
     /** Tells a joining player with the mod what this server allows. */
     public static void onJoin(ServerPlayer player) {
         ServerConfig c = config();
         Platform.INSTANCE.sendToPlayer(player, new ServerConfigPayload(ServerConfigPayload.PROTOCOL, (float) c.maxRange, List.copyOf(c.tools)));
+        RaceServer.sendTracks(player);
     }
 
     public static void handleState(ServerPlayer player, DroneStatePayload msg) {
+        RaceServer.onDroneState(player, msg);
         if (!msg.active()) {
             remove(player.getUUID());
             return;
@@ -155,6 +159,7 @@ public final class DroneServer {
             }
         }
         if (now % INFO_INTERVAL == 0 && !DRONES.isEmpty() && config().shareTelemetry) broadcastInfo(server);
+        RaceServer.tick(server);
     }
 
     /** Sends each modded player the drones near them, or whose pilot is near them. */
@@ -181,10 +186,20 @@ public final class DroneServer {
     public static void clear() {
         DRONES.values().forEach(drone -> drone.entity.discard());
         DRONES.clear();
+        RaceServer.onServerStopping();
     }
 
-    /** Drones saved into a chunk by a crash or restart come back as orphans; drop them on load. */
+    public static void onLeave(ServerPlayer player) {
+        remove(player.getUUID());
+        RaceServer.onLeave(player);
+    }
+
+    /**
+     * Drones saved into a chunk by a crash or restart come back as orphans; drop them on load. Race gates and
+     * leaderboards of deleted tracks are dropped the same way.
+     */
     public static boolean isOrphan(Entity entity) {
+        if (!RaceServer.onEntityLoad(entity)) return true;
         if (entity == spawning || !(entity instanceof Display.ItemDisplay) || !entity./*? if >=26.1 {*/entityTags/*?} else {*//*getTags*//*?}*/().contains(FreeFpv.DRONE_TAG)) return false;
         for (Drone drone : DRONES.values()) {
             if (drone.entity == entity) return false;

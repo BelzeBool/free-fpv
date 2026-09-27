@@ -4,9 +4,14 @@ package com.belzebool.freefpv.platform;
 import com.belzebool.freefpv.FreeFpv;
 import com.belzebool.freefpv.net.DroneInfoPayload;
 import com.belzebool.freefpv.net.DroneStatePayload;
+import com.belzebool.freefpv.net.GhostPayload;
+import com.belzebool.freefpv.net.RacePayload;
+import com.belzebool.freefpv.net.TrackEditPayload;
+import com.belzebool.freefpv.net.TracksPayload;
 import com.belzebool.freefpv.net.OwnDronePayload;
 import com.belzebool.freefpv.net.ServerConfigPayload;
 import com.belzebool.freefpv.server.DroneServer;
+import com.belzebool.freefpv.server.race.RaceServer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -25,23 +30,33 @@ public class FabricEntry implements ModInitializer {
     public void onInitialize() {
         //? if >=26.1 {
         PayloadTypeRegistry.serverboundPlay().register(DroneStatePayload.TYPE, DroneStatePayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(TrackEditPayload.TYPE, TrackEditPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(TracksPayload.TYPE, TracksPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(RacePayload.TYPE, RacePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(GhostPayload.TYPE, GhostPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(OwnDronePayload.TYPE, OwnDronePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ServerConfigPayload.TYPE, ServerConfigPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(DroneInfoPayload.TYPE, DroneInfoPayload.CODEC);
         //?} else {
         /*PayloadTypeRegistry.playC2S().register(DroneStatePayload.TYPE, DroneStatePayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(TrackEditPayload.TYPE, TrackEditPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(TracksPayload.TYPE, TracksPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(RacePayload.TYPE, RacePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(GhostPayload.TYPE, GhostPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(OwnDronePayload.TYPE, OwnDronePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(ServerConfigPayload.TYPE, ServerConfigPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(DroneInfoPayload.TYPE, DroneInfoPayload.CODEC);
         *///?}
         ServerPlayNetworking.registerGlobalReceiver(DroneStatePayload.TYPE,
             (payload, context) -> DroneServer.handleState(context.player(), payload));
+        ServerPlayNetworking.registerGlobalReceiver(TrackEditPayload.TYPE,
+            (payload, context) -> RaceServer.onEdit(context.player(), payload));
 
         ServerTickEvents.END_SERVER_TICK.register(DroneServer::tick);
-        ServerLifecycleEvents.SERVER_STARTING.register(server -> DroneServer.onServerStarting());
+        ServerLifecycleEvents.SERVER_STARTING.register(DroneServer::onServerStarting);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> DroneServer.clear());
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> DroneServer.onJoin(handler.getPlayer()));
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> DroneServer.remove(handler.getPlayer().getUUID()));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> DroneServer.onLeave(handler.getPlayer()));
         //? if >=26.1 {
         ServerEntityEvents.ALLOW_LOAD.register((entity, level, reason, fromDisk) -> !DroneServer.isOrphan(entity));
         //?} else

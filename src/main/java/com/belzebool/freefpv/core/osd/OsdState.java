@@ -54,4 +54,24 @@ public final class OsdState {
     public List<String[]> help = List.of();
     public String helpTitle = "";
     public double helpAlpha;
+
+    // ------------------------------------------------------------------ racing
+
+    public boolean raceActive;
+    public boolean raceFinished;
+    public String raceTrack = "";
+    public int raceLap, raceLaps, raceGate, raceGates;
+    public long raceLapTime, raceTotalTime, raceBestLap, raceRecord;
+    /** Big centred message (GO!, lap time, FINISH) and its second line, colour and fade. */
+    public String raceBanner = "";
+    public String raceBannerSub = "";
+    public int raceBannerColor = 0xFFFFFFFF;
+    public double raceBannerAlpha;
+    /** Next gate projected on screen: x, y in -1..1 when in front of the camera, otherwise a direction. */
+    public boolean targetVisible;
+    public boolean targetInFront;
+    public double targetX, targetY, targetDistance;
+    public String lapLabel = "LAP";
+    public String gateLabel = "GATE";
+    public String bestLabel = "BEST";
 }

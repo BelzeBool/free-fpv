@@ -7,7 +7,11 @@ import com.belzebool.freefpv.client.GuiCanvas;
 import com.belzebool.freefpv.client.Keys;
 import com.belzebool.freefpv.client.ServerFeatures;
 import com.belzebool.freefpv.client.tools.ToolSlot;
+import com.belzebool.freefpv.client.race.ClientRace;
 import com.belzebool.freefpv.net.DroneInfoPayload;
+import com.belzebool.freefpv.net.GhostPayload;
+import com.belzebool.freefpv.net.RacePayload;
+import com.belzebool.freefpv.net.TracksPayload;
 import com.belzebool.freefpv.net.OwnDronePayload;
 import com.belzebool.freefpv.net.ServerConfigPayload;
 import net.fabricmc.api.ClientModInitializer;
@@ -43,6 +47,9 @@ public class FabricClientEntry implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(OwnDronePayload.TYPE,
             (payload, context) -> DroneController.INSTANCE.setOwnDroneId(payload.entityId()));
         ClientPlayNetworking.registerGlobalReceiver(ServerConfigPayload.TYPE, (payload, context) -> ServerFeatures.accept(payload));
+        ClientPlayNetworking.registerGlobalReceiver(TracksPayload.TYPE, (payload, context) -> ClientRace.onTracks(payload));
+        ClientPlayNetworking.registerGlobalReceiver(RacePayload.TYPE, (payload, context) -> ClientRace.onRace(payload));
+        ClientPlayNetworking.registerGlobalReceiver(GhostPayload.TYPE, (payload, context) -> ClientRace.onGhost(payload));
         ClientPlayNetworking.registerGlobalReceiver(DroneInfoPayload.TYPE,
             (payload, context) -> DroneController.INSTANCE.onDroneInfo(payload));
 
