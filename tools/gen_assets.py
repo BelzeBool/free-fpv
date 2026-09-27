@@ -43,6 +43,9 @@ PALETTES = {
     "led_green": hexes(0xC8FFC8, 0x3CEB5A, 0x1FC240, 0x10902C),
     "led_cyan": hexes(0xC8FAFF, 0x3CD8F0, 0x1FB0CC, 0x10849C),
     "white": hexes(0xFFFFFF, 0xEDEDED, 0xCFCFCF, 0xA8A8A8),
+    # Painted parts: light grey that the game multiplies with the player's colour (item model tints).
+    "tint": hexes(0xFFFFFF, 0xF2F2F2, 0xCACACA, 0x9A9A9A),
+    "tint_led": hexes(0xFFFFFF, 0xFFFFFF, 0xF0F0F0, 0xE0E0E0),
     "magenta": hexes(0xFF8AE8, 0xE848C8, 0xB82C9C, 0x801C6C),
     "led_magenta": hexes(0xFFD0F6, 0xFF5CE0, 0xE030C0, 0xA81C8C),
     "led_yellow": hexes(0xFFF6C0, 0xFFE040, 0xE0B820, 0xA88410),
@@ -192,17 +195,22 @@ def decal(name, img, rng):
 # --------------------------------------------------------------------------------------------- model builder
 
 class Model:
-    def __init__(self, name):
+    def __init__(self, name, tints=None):
         self.name = name
         self.elements = []
         self.extra_textures = {}
         self.display = None
+        # Default colours of tint 0 (frame) and tint 1 (LEDs) for stacks without the components.
+        self.tints = tints
 
-    def box(self, frm, to, mat, rot=None, decals=None, faces=FACES, emissive=False, rim=True):
+    def box(self, frm, to, mat, rot=None, decals=None, faces=FACES, emissive=False, rim=True, tint=None):
+        """tint 0 = frame paint (dyed colour), tint 1 = LED colour (custom model data colour)."""
         el = {"from": [round(v, 3) for v in frm], "to": [round(v, 3) for v in to]}
         if rot:
             el["rotation"] = rot
-        self.elements.append({"el": el, "mat": mat, "decals": decals or {}, "faces": faces, "emissive": emissive, "rim": rim})
+        if tint is not None:
+            mat = "tint_led" if tint == 1 else "tint"
+        self.elements.append({"el": el, "mat": mat, "decals": decals or {}, "faces": faces, "emissive": emissive, "rim": rim, "tint": tint})
         return el
 
     def raw(self, frm, to, texture, faces=FACES, emissive=False):
@@ -258,6 +266,9 @@ class Model:
                 continue
             el = dict(item["el"])
             el["faces"] = {f: {"uv": uvs[(i, f)], "texture": "#a"} for f in item["faces"] if (i, f) in uvs}
+            if item.get("tint") is not None:
+                for face in el["faces"].values():
+                    face["tintindex"] = item["tint"]
             if item["emissive"]:
                 el["light_emission"] = 15
             elements.append(el)
@@ -268,8 +279,15 @@ class Model:
             data["gui_light"] = "side"
             data["display"] = self.display
         write_json(os.path.join(ROOT, "models", "item", self.name + ".json"), data)
-        write_json(os.path.join(ROOT, "items", self.name + ".json"),
-                   {"model": {"type": "minecraft:model", "model": "freefpv:item/" + self.name}})
+        write_json(os.path.join(ROOT, "items", self.name + ".json"), item_definition(self.name, self.tints))
+
+
+def item_definition(name, tints):
+    model = {"type": "minecraft:model", "model": "freefpv:item/" + name}
+    if tints:
+        model["tints"] = [{"type": "minecraft:dye", "default": tints[0]},
+                          {"type": "minecraft:custom_model_data", "index": 0, "default": tints[1]}]
+    return {"model": model}
 
 
 def pack(sizes):
@@ -347,18 +365,18 @@ def tips(reach):
 
 
 def camera_drone():
-    m = Model("drone_camera")
-    m.box([5, 7, 4], [11, 9, 12], "plastic_light", decals={"up": "shell_top", "down": "down"})
+    m = Model("drone_camera", tints=[0xE6E6E6, 0xFFFFFF])
+    m.box([5, 7, 4], [11, 9, 12], "plastic_light", decals={"down": "down"}, tint=0)
     m.box([6, 7, 3], [10, 9, 4], "plastic_light", decals={"north": "sensors"})
     m.box([6, 9, 6], [10, 10, 11], "plastic_mid")
     m.box([6, 7, 12], [10, 9, 13], "plastic_mid", decals={"south": "rear"})
     m.box([7, 6, 3], [9, 7, 4], "plastic_dark")
     m.box([7, 5, 2], [9, 7, 3], "black", decals={"north": "lens"})
     for angle in (45, -45):
-        m.box([1, 8, 7.5], [15, 9, 8.5], "plastic_light", rot={"origin": [8, 8, 8], "axis": "y", "angle": angle})
+        m.box([1, 8, 7.5], [15, 9, 8.5], "plastic_light", tint=0, rot={"origin": [8, 8, 8], "axis": "y", "angle": angle})
     for (x, z) in tips(7.4):
         m.box([x - 1, 8, z - 1], [x + 1, 10, z + 1], "silver", decals={"up": "motor_top"})
-        m.box([x - 0.5, 6, z - 0.5], [x + 0.5, 8, z + 0.5], "plastic_light", rim=False)
+        m.box([x - 0.5, 6, z - 0.5], [x + 0.5, 8, z + 0.5], "plastic_light", rim=False, tint=0)
         m.prop(x, z, 10.1, 3.5, "prop")
     fl, fr, rl, rr = tips(7.4)
     m.box([fl[0] - 0.5, 7, fl[1] - 1.5], [fl[0] + 0.5, 8, fl[1] - 1], "led_red", emissive=True)
@@ -371,28 +389,28 @@ def camera_drone():
 
 
 def fpv_drone():
-    m = Model("drone_fpv")
+    m = Model("drone_fpv", tints=[0xEB7F24, 0x3CD8F0])
     m.box([5, 7, 4], [11, 8, 12], "carbon")
     for angle in (45, -45):
         m.box([0, 7, 7], [16, 8, 9], "carbon", rot={"origin": [8, 7.5, 8], "axis": "y", "angle": angle})
     for (x, z) in ((6, 5), (10, 5), (6, 11), (10, 11)):
-        m.box([x - 0.5, 8, z - 0.5], [x + 0.5, 10, z + 0.5], "purple", faces=("north", "south", "east", "west"), rim=False)
+        m.box([x - 0.5, 8, z - 0.5], [x + 0.5, 10, z + 0.5], "purple", faces=("north", "south", "east", "west"), rim=False, tint=0)
     m.box([6, 8, 6], [10, 9, 10], "pcb", decals={"up": "pcb_top"})
     m.box([5, 10, 5], [11, 11, 11], "carbon", decals={"up": "carbon_top"})
-    m.box([5, 8, 3], [6, 10, 6], "orange")
-    m.box([10, 8, 3], [11, 10, 6], "orange")
+    m.box([5, 8, 3], [6, 10, 6], "orange", tint=0)
+    m.box([10, 8, 3], [11, 10, 6], "orange", tint=0)
     m.box([6, 8, 3], [10, 10, 5], "black", rot={"origin": [8, 9, 4], "axis": "x", "angle": 22.5}, decals={"north": "lens"})
     m.box([6, 11, 5], [10, 13, 11], "black", decals={"east": "lipo", "west": "lipo", "up": "lipo"})
     m.box([5.5, 10.5, 7], [10.5, 13.5, 8], "plastic_dark", rim=False)
     m.box([7, 11, 11], [9, 12, 12], "yellow")
-    m.box([7, 8, 11], [9, 10, 12], "orange")
+    m.box([7, 8, 11], [9, 10, 12], "orange", tint=0)
     ant = {"origin": [8, 10, 11.5], "axis": "x", "angle": -22.5}
     m.box([7.5, 10, 11], [8.5, 13, 12], "black", rot=ant, rim=False)
     m.box([7, 13, 10.5], [9, 14, 12.5], "black", rot=ant)
     for (x, z) in tips(7.8):
         m.box([x - 1, 8, z - 1], [x + 1, 10, z + 1], "silver", decals={"up": "motor_top_purple"})
         m.prop(x, z, 10.1, 4, "prop")
-        m.box([x - 0.5, 6.5, z - 0.5], [x + 0.5, 7, z + 0.5], "led_cyan", emissive=True)
+        m.box([x - 0.5, 6.5, z - 0.5], [x + 0.5, 7, z + 0.5], "led_cyan", emissive=True, tint=1)
     m.extra_textures = {"prop": "freefpv:item/prop_fpv"}
     m.display = drone_display(0.6)
     return m
@@ -453,6 +471,88 @@ def remote_fpv():
     m.box([7, 7, 5], [9, 8, 6], "plastic_dark")
     m.box([7.5, 8, 5], [8.5, 13, 6], "black", rot={"origin": [8, 8, 5.5], "axis": "x", "angle": -22.5}, rim=False)
     m.display = remote_display(0.95)
+    return m
+
+
+def ring(m, cx, cz, r, y0, y1, t, mat, tint=None):
+    """Octagonal duct around a propeller: eight wall pieces, the diagonal ones turned 45 degrees."""
+    seg = 2 * r * math.tan(math.pi / 8) + 0.1
+    for k in range(8):
+        a = k * math.pi / 4
+        px, pz = cx + math.cos(a) * r, cz + math.sin(a) * r
+        if k % 2 == 0:
+            # straight wall across x or z
+            if k % 4 == 0:
+                frm, to = [px - t / 2, y0, pz - seg / 2], [px + t / 2, y1, pz + seg / 2]
+            else:
+                frm, to = [px - seg / 2, y0, pz - t / 2], [px + seg / 2, y1, pz + t / 2]
+            m.box(frm, to, mat, tint=tint)
+        else:
+            angle = 45 if k in (1, 5) else -45
+            m.box([px - seg / 2, y0, pz - t / 2], [px + seg / 2, y1, pz + t / 2], mat, tint=tint,
+                  rot={"origin": [px, (y0 + y1) / 2, pz], "axis": "y", "angle": angle})
+
+
+def cinewhoop():
+    """3 inch ducted cinewhoop with a small action camera on top."""
+    m = Model("drone_cinewhoop", tints=[0x2E9BF0, 0xFFFFFF])
+    m.box([4.5, 7, 4.5], [11.5, 7.5, 11.5], "carbon")
+    for (x, z) in tips(7.2):
+        ring(m, x, z, 3.2, 6.8, 8.8, 0.6, "tint", tint=0)
+        m.box([x - 0.8, 7.5, z - 0.8], [x + 0.8, 8.5, z + 0.8], "silver", decals={"up": "motor_top"})
+        m.prop(x, z, 8.6, 2.8, "prop")
+        m.box([x - 0.4, 6.4, z - 0.4], [x + 0.4, 6.8, z + 0.4], "led_cyan", emissive=True, tint=1)
+    for angle in (45, -45):
+        m.box([2.5, 7, 7.6], [13.5, 7.5, 8.4], "carbon", rot={"origin": [8, 7.25, 8], "axis": "y", "angle": angle})
+    m.box([6.5, 7.5, 6.5], [9.5, 8.5, 9.5], "pcb", decals={"up": "pcb_top"})
+    m.box([6, 8.5, 5.8], [10, 10, 10.2], "black", decals={"east": "lipo", "west": "lipo", "up": "lipo"})
+    m.box([7, 7.5, 3.8], [9, 9.3, 5.2], "black", rot={"origin": [8, 8.4, 4.5], "axis": "x", "angle": 22.5}, decals={"north": "lens"})
+    m.box([6.8, 10, 6.5], [9.2, 11.6, 8.3], "black", decals={"north": "lens"})
+    m.extra_textures = {"prop": "freefpv:item/prop_fpv"}
+    m.display = drone_display(0.62)
+    return m
+
+
+def long_range():
+    """7 inch long-range quad: long arms, big props, GPS on a mast, battery slung underneath."""
+    m = Model("drone_longrange", tints=[0x3CCB6A, 0xFF4A3D])
+    m.box([5.5, 7, 3.5], [10.5, 7.6, 12.5], "carbon")
+    for angle in (45, -45):
+        m.box([-0.8, 7, 7.3], [16.8, 7.6, 8.7], "carbon", rot={"origin": [8, 7.3, 8], "axis": "y", "angle": angle})
+    for (x, z) in tips(8.6):
+        m.box([x - 1.1, 7.6, z - 1.1], [x + 1.1, 9.6, z + 1.1], "silver", decals={"up": "motor_top"})
+        m.prop(x, z, 9.7, 5.2, "prop")
+        m.box([x - 0.4, 6.6, z - 0.4], [x + 0.4, 7, z + 0.4], "led_red", emissive=True, tint=1)
+    m.box([6, 7.6, 5], [10, 9.6, 11], "carbon", decals={"up": "carbon_top"})
+    m.box([5.8, 5, 4.5], [10.2, 7, 11.5], "black", decals={"east": "lipo", "west": "lipo", "down": "lipo"})
+    m.box([7, 7.6, 2.6], [9, 9.6, 4.2], "black", rot={"origin": [8, 8.6, 3.4], "axis": "x", "angle": 22.5}, decals={"north": "lens"})
+    m.box([5.5, 7.6, 3], [6.5, 9.4, 5], "tint", tint=0)
+    m.box([9.5, 7.6, 3], [10.5, 9.4, 5], "tint", tint=0)
+    m.box([7.6, 9.6, 11], [8.4, 12.5, 11.8], "black", rim=False)
+    m.box([6.6, 12.5, 10.4], [9.4, 13.1, 12.4], "tint", tint=0)
+    for side in (-1, 1):
+        m.box([8 + side * 1.2 - 0.3, 9.6, 11.8], [8 + side * 1.2 + 0.3, 13, 12.4], "black", rim=False,
+              rot={"origin": [8 + side * 1.2, 9.6, 12.1], "axis": "z", "angle": -22.5 * side})
+    m.extra_textures = {"prop": "freefpv:item/prop_fpv"}
+    m.display = drone_display(0.52)
+    return m
+
+
+def avata():
+    """Ducted cinematic FPV drone in the spirit of the DJI Avata: rounded shell, gimbal camera, rear LED strip."""
+    m = Model("drone_avata", tints=[0x5A5F66, 0x3CD8F0])
+    m.box([5, 7, 4], [11, 10, 12], "tint", tint=0, decals={"up": "shell_top"})
+    m.box([5.5, 10, 5], [10.5, 10.8, 11], "tint", tint=0)
+    m.box([6, 7.5, 3], [10, 9.5, 4], "black")
+    m.box([6.8, 7.8, 2.4], [9.2, 9.2, 3], "black", decals={"north": "lens"})
+    for (x, z) in tips(7.6):
+        ring(m, x, z, 3.3, 6.6, 8.6, 0.7, "tint", tint=0)
+        m.box([x - 0.8, 7.2, z - 0.8], [x + 0.8, 8.2, z + 0.8], "silver", decals={"up": "motor_top"})
+        m.prop(x, z, 8.3, 2.9, "prop")
+    m.box([6.5, 8, 12], [9.5, 9, 12.3], "tint_led", emissive=True, tint=1)
+    m.box([5.5, 6.4, 5], [10.5, 7, 11], "plastic_dark")
+    m.extra_textures = {"prop": "freefpv:item/prop_fpv"}
+    m.display = drone_display(0.6)
     return m
 
 
@@ -579,8 +679,11 @@ def ghost(name):
     for el in data["elements"]:
         el.pop("light_emission", None)
     write_json(os.path.join(ROOT, "models", "item", name + "_ghost.json"), data)
-    write_json(os.path.join(ROOT, "items", name + "_ghost.json"),
-               {"model": {"type": "minecraft:model", "model": "freefpv:item/" + name + "_ghost"}})
+    for el in data["elements"]:
+        for face in el.get("faces", {}).values():
+            face.pop("tintindex", None)
+    write_json(os.path.join(ROOT, "models", "item", name + "_ghost.json"), data)
+    write_json(os.path.join(ROOT, "items", name + "_ghost.json"), item_definition(name + "_ghost", None))
 
 
 # --------------------------------------------------------------------------------------------- GUI sprites
@@ -627,11 +730,11 @@ def main():
     prop_frames(os.path.join(TEX_ITEM, "prop_camera.png"), 2, (225, 225, 225), (190, 190, 190))
     prop_frames(os.path.join(TEX_ITEM, "prop_fpv.png"), 3, (60, 60, 66), (40, 40, 46))
     blink_frames(os.path.join(TEX_ITEM, "led_status.png"), (60, 235, 90), "1100000011000000000000")
-    for model in (camera_drone(), fpv_drone(), remote_camera(), remote_fpv(),
+    for model in (camera_drone(), fpv_drone(), cinewhoop(), long_range(), avata(), remote_camera(), remote_fpv(),
                   gate_standard(), gate_start(), gate_arch(), gate_flag(), gate_dive()):
         model.bake()
-    ghost("drone_fpv")
-    ghost("drone_camera")
+    for name in ("drone_camera", "drone_fpv", "drone_cinewhoop", "drone_longrange", "drone_avata"):
+        ghost(name)
     gui_sprites()
 
 

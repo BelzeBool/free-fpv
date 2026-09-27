@@ -7,6 +7,7 @@ import com.belzebool.freefpv.client.race.ClientRace;
 import com.belzebool.freefpv.client.race.TrackEditorTool;
 import com.belzebool.freefpv.compat.EmotecraftCompat;
 import com.belzebool.freefpv.core.CameraShake;
+import com.belzebool.freefpv.core.Airframe;
 import com.belzebool.freefpv.core.DroneConfig;
 import com.belzebool.freefpv.core.DroneInput;
 import com.belzebool.freefpv.core.DronePhysics;
@@ -63,6 +64,9 @@ public final class DroneController {
     private final McDroneWorld world = new McDroneWorld();
     private final CameraShake shake = new CameraShake();
     private DroneConfig config = new DroneConfig();
+    /** {@link #config} with the current airframe's flight characteristics; what the physics flies with. */
+    private DroneConfig flightConfig = config;
+    private Airframe airframe = Airframe.FREESTYLE;
 
     private boolean flying;
     private FlightMode mode = FlightMode.NORMAL;
@@ -183,6 +187,7 @@ public final class DroneController {
         gamepad.loadMappings(Platform.INSTANCE.configDir().resolve("freefpv").resolve("gamecontrollerdb.txt"));
         ensureModes();
         mode = fpv ? lastFpvMode : lastCameraMode;
+        applyAirframe();
 
         double yaw = Math.toRadians(player.getYRot());
         double fx = -Math.sin(yaw), fz = Math.cos(yaw);
@@ -312,6 +317,7 @@ public final class DroneController {
         while (Keys.GIMBAL_RESET.consumeClick()) resetGimbal();
         while (Keys.RETURN_HOME.consumeClick()) toggleReturnHome();
         while (Keys.HELP.consumeClick()) toggleHelp();
+        while (Keys.WORKSHOP.consumeClick()) openWorkshop(mc, mode.isFpv());
         while (Keys.TOOL_SLOT.consumeClick()) {
         }
 
@@ -342,7 +348,7 @@ public final class DroneController {
             showHint(tr("hint.freefpv.rth_blocked"));
             beep(0.8f);
         }
-        if (!mode.isFpv() && config.cameraDrone.autoRthOnLowBattery && config.general.batteryMinutes > 0
+        if (!mode.isFpv() && config.cameraDrone.autoRthOnLowBattery && flightConfig.general.batteryMinutes > 0
             && physics.battery < 0.15 && !autoRthDone && physics.autopilot == DronePhysics.Autopilot.NONE && !physics.crashed) {
             autoRthDone = true;
             if (physics.startReturnHome(pilotEye, config.cameraDrone.rthHeight)) showHint(tr("hint.freefpv.rth_low_battery"));
@@ -372,7 +378,8 @@ public final class DroneController {
             Platform.INSTANCE.sendToServer(new DroneStatePayload(true, mode.isFpv(),
                 physics.pos.x, physics.pos.y, physics.pos.z,
                 (float) physics.att.x, (float) physics.att.y, (float) physics.att.z, (float) physics.att.w,
-                (float) physics.motor, flags, (int) Math.round(physics.clock * 1000)));
+                (float) physics.motor, flags, (int) Math.round(physics.clock * 1000),
+                airframe.ordinal(), config.drone.frameRgb(mode.isFpv()), config.drone.ledRgb()));
         }
     }
 
@@ -380,6 +387,9 @@ public final class DroneController {
         for (KeyMapping key : List.of(Keys.MODE, Keys.DRONE_TYPE, Keys.RECORD, Keys.OSD, Keys.GIMBAL_RESET, Keys.RETURN_HOME, Keys.HELP)) {
             while (key.consumeClick()) {
             }
+        }
+        while (Keys.WORKSHOP.consumeClick()) {
+            if (mc.player != null && screen(mc) == null) openWorkshop(mc, lastLaunchFpv());
         }
         boolean launch = false;
         while (Keys.LAUNCH.consumeClick()) launch = true;
@@ -415,7 +425,7 @@ public final class DroneController {
         pilotEye.set(pilot.getX(), pilot.getEyeY(), pilot.getZ());
         double renderRange = Math.max(32, (mc.options.getEffectiveRenderDistance() - 1) * 16);
         maxRange = Math.min(ServerFeatures.capRange(config.general.maxRange), renderRange);
-        double alpha = physics.advance(dt, input, mode, config, world, pilotEye, maxRange);
+        double alpha = physics.advance(dt, input, mode, flightConfig, world, pilotEye, maxRange);
         physics.cameraPose(alpha, mode, config, cameraPos, cameraRot);
         physics.prevPos.lerp(physics.pos, alpha, center);
 
@@ -692,9 +702,49 @@ public final class DroneController {
         setMode(mode.isFpv() ? lastCameraMode : lastFpvMode);
     }
 
+    /** Picks the build for the current drone family and derives the flight settings from it. */
+    private void applyAirframe() {
+        airframe = config.drone.airframe(mode.isFpv());
+        flightConfig = airframe.apply(config);
+        physics.bounce = airframe.bounce;
+    }
+
+    private static final java.util.Map<String, net.minecraft.resources.Identifier> VIDEO_EFFECTS = java.util.Map.of(
+        "analog", com.belzebool.freefpv.FreeFpv.id("fpv_analog"),
+        "o4", com.belzebool.freefpv.FreeFpv.id("fpv_o4"),
+        "walksnail", com.belzebool.freefpv.FreeFpv.id("fpv_walksnail"),
+        "clean", com.belzebool.freefpv.FreeFpv.id("fpv_clean"));
+
+    /** Post effect for the FPV camera image, or null when not flying FPV or the look is switched off. */
+    public net.minecraft.resources.Identifier videoEffect() {
+        if (!flying || !mode.isFpv()) return null;
+        return VIDEO_EFFECTS.get(config.camera.videoStyle.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    public void openWorkshop(Minecraft mc, boolean fpv) {
+        Compat.setScreen(mc, new WorkshopScreen(fpv));
+    }
+
+    /** Which drone family the next launch uses: the remote in the tool slot, else the last one flown. */
+    private boolean lastLaunchFpv() {
+        return ToolSlot.INSTANCE.selected() instanceof DroneRemoteTool remote ? remote.fpv() : mode.isFpv();
+    }
+
+    public Airframe airframe() {
+        return airframe;
+    }
+
+    /** The workshop changed the build or paint; takes effect at once, also mid-flight. */
+    public void onDroneCustomized() {
+        config.save(configFile());
+        if (flying) applyAirframe();
+    }
+
     private void setMode(FlightMode next) {
         boolean enteringFpv = next.isFpv() && !mode.isFpv();
+        boolean familyChanged = next.isFpv() != mode.isFpv();
         mode = next;
+        if (familyChanged) applyAirframe();
         if (mode.isFpv()) lastFpvMode = mode;
         else lastCameraMode = mode;
         physics.cancelAutopilot();
@@ -878,8 +928,8 @@ public final class DroneController {
         osd.horizontalSpeed = physics.horizontalSpeed();
         osd.verticalSpeed = physics.vel.y;
         osd.battery = physics.battery;
-        osd.batteryEnabled = config.general.batteryMinutes > 0;
-        osd.batteryMinutes = config.general.batteryMinutes;
+        osd.batteryEnabled = flightConfig.general.batteryMinutes > 0;
+        osd.batteryMinutes = flightConfig.general.batteryMinutes;
         osd.voltage = physics.packVoltage();
         osd.flightTime = physics.flightTime;
         osd.signal = physics.signal;

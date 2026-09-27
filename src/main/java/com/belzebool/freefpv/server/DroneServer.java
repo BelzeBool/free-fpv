@@ -1,6 +1,7 @@
 package com.belzebool.freefpv.server;
 
 import com.belzebool.freefpv.FreeFpv;
+import com.belzebool.freefpv.core.Airframe;
 import com.belzebool.freefpv.net.DroneInfoPayload;
 import com.belzebool.freefpv.net.DroneStatePayload;
 import com.belzebool.freefpv.net.OwnDronePayload;
@@ -22,6 +23,8 @@ import net.minecraft.world.entity.EntityTypes;
 //import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomModelData;
+import net.minecraft.world.item.component.DyedItemColor;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -43,8 +46,6 @@ public final class DroneServer {
     private static final int TIMEOUT_TICKS = 40;
     private static final int INFO_INTERVAL = 2;
     private static final double INFO_RANGE = 128;
-    private static final float CAMERA_SCALE = 0.55f;
-    private static final float FPV_SCALE = 0.5f;
 
     private static final Map<UUID, Drone> DRONES = new HashMap<>();
     private static Entity spawning;
@@ -54,6 +55,8 @@ public final class DroneServer {
         Display.ItemDisplay entity;
         int pilotId;
         boolean fpv;
+        int look = Integer.MIN_VALUE;
+        float scale = 0.5f;
         int flags;
         float motor;
         int lastUpdate;
@@ -110,6 +113,14 @@ public final class DroneServer {
             Platform.INSTANCE.sendToPlayer(player, new OwnDronePayload(drone.entity.getId()));
         }
         drone.lastUpdate = level.getServer().getTickCount();
+        Airframe airframe = Airframe.byOrdinal(msg.airframe());
+        if (airframe.fpv != msg.fpv()) airframe = msg.fpv() ? Airframe.FREESTYLE : Airframe.MINI;
+        int look = java.util.Objects.hash(airframe, msg.frameColor(), msg.ledColor());
+        if (look != drone.look) {
+            drone.look = look;
+            drone.scale = airframe.scale;
+            ((ItemDisplayAccessor) drone.entity).freefpv$setItemStack(droneStack(airframe, msg.frameColor(), msg.ledColor(), false));
+        }
         drone.pilotId = player.getId();
         drone.flags = (msg.fpv() ? DroneInfoPayload.FPV : 0) | (msg.flags() & (DroneInfoPayload.CRASHED | DroneInfoPayload.AUTOPILOT));
         drone.motor = Float.isFinite(msg.motor()) ? Math.max(0, Math.min(1, msg.motor())) : 0;
@@ -119,7 +130,7 @@ public final class DroneServer {
         Quaternionf rotation = new Quaternionf(msg.qx(), msg.qy(), msg.qz(), msg.qw());
         if (!Float.isFinite(rotation.lengthSquared()) || rotation.lengthSquared() < 1e-4f) rotation.identity();
         rotation.normalize();
-        float scale = msg.fpv() ? FPV_SCALE : CAMERA_SCALE;
+        float scale = drone.scale;
         DisplayAccessor access = (DisplayAccessor) entity;
         access.freefpv$setTransformation(new Transformation(null, rotation, new Vector3f(scale), null));
         access.freefpv$setTransformationInterpolationDelay(0);
@@ -127,9 +138,7 @@ public final class DroneServer {
 
     private static Display.ItemDisplay spawn(ServerLevel level, DroneStatePayload msg) {
         Display.ItemDisplay entity = new Display.ItemDisplay(/*? if >=26.2 {*/EntityTypes/*?} else {*//*EntityType*//*?}*/.ITEM_DISPLAY, level);
-        ItemStack stack = new ItemStack(Items.PAPER);
-        stack.set(DataComponents.ITEM_MODEL, FreeFpv.id(msg.fpv() ? "drone_fpv" : "drone_camera"));
-        ((ItemDisplayAccessor) entity).freefpv$setItemStack(stack);
+        ((ItemDisplayAccessor) entity).freefpv$setItemStack(droneStack(msg.fpv() ? Airframe.FREESTYLE : Airframe.MINI, 0xFFFFFF, 0xFFFFFF, false));
         entity.setPos(msg.x(), msg.y(), msg.z());
         DisplayAccessor access = (DisplayAccessor) entity;
         access.freefpv$setPosRotInterpolationDuration(2);
@@ -144,6 +153,18 @@ public final class DroneServer {
         } finally {
             spawning = null;
         }
+    }
+
+    /**
+     * The item a drone display shows: the airframe's model, painted through the model's tints: tint 0 reads the dyed
+     * colour (frame), tint 1 the first custom model data colour (LEDs).
+     */
+    public static ItemStack droneStack(Airframe airframe, int frameColor, int ledColor, boolean ghost) {
+        ItemStack stack = new ItemStack(Items.PAPER);
+        stack.set(DataComponents.ITEM_MODEL, FreeFpv.id(airframe.model + (ghost ? "_ghost" : "")));
+        stack.set(DataComponents.DYED_COLOR, new DyedItemColor(frameColor & 0xFFFFFF));
+        stack.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(List.of(), List.of(), List.of(), List.of(ledColor & 0xFFFFFF)));
+        return stack;
     }
 
     public static void tick(MinecraftServer server) {

@@ -49,6 +49,8 @@ public final class DronePhysics {
     public double motor;
     public double battery = 1;
     public double flightTime;
+    /** How much speed an FPV quad keeps when it bounces off a block (ducted builds bounce more). */
+    public double bounce = 0.3;
     /** Simulated seconds since launch, crashed or not. Race timing runs on this clock. */
     public double clock;
     public double signal = 1;
@@ -465,7 +467,7 @@ public final class DronePhysics {
         onGround = false;
         double impact = 0;
         boolean camera = !mode.isFpv();
-        double restitution = camera ? 0 : 0.3;
+        double restitution = camera ? 0 : bounce;
         tmp.zero();
         if (Math.abs(allowed.x - motion.x) > 1e-7) {
             impact = Math.max(impact, Math.abs(vel.x));

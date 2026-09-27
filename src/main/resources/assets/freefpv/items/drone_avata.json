@@ -1,16 +1,16 @@
 {
  "model": {
   "type": "minecraft:model",
-  "model": "freefpv:item/drone_camera",
+  "model": "freefpv:item/drone_avata",
   "tints": [
    {
     "type": "minecraft:dye",
-    "default": 15132390
+    "default": 5922662
    },
    {
     "type": "minecraft:custom_model_data",
     "index": 0,
-    "default": 16777215
+    "default": 3987696
    }
   ]
  }

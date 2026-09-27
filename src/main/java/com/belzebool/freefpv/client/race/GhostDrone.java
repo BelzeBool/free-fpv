@@ -1,17 +1,15 @@
 package com.belzebool.freefpv.client.race;
 
-import com.belzebool.freefpv.FreeFpv;
+import com.belzebool.freefpv.core.Airframe;
+import com.belzebool.freefpv.server.DroneServer;
 import com.belzebool.freefpv.mixin.DisplayAccessor;
 import com.belzebool.freefpv.mixin.ItemDisplayAccessor;
 import com.belzebool.freefpv.net.GhostPayload;
 import com.mojang.math.Transformation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 //? if >=26.2 {
@@ -27,14 +25,15 @@ final class GhostDrone {
     private static final int ID = -774_411;
 
     private float[] samples;
-    private boolean fpv;
+    private Airframe airframe = Airframe.FREESTYLE;
     private long lapStartMs;
     private Display.ItemDisplay entity;
     private ClientLevel level;
 
-    void start(float[] samples, boolean fpv, long lapStartMs) {
+    void start(float[] samples, Airframe airframe, long lapStartMs) {
         this.samples = samples;
-        this.fpv = fpv;
+        if (airframe != this.airframe) remove();
+        this.airframe = airframe;
         this.lapStartMs = lapStartMs;
     }
 
@@ -79,16 +78,14 @@ final class GhostDrone {
         var cam = mc.gameRenderer./*? if >=26.2 {*/mainCamera/*?} else {*//*getMainCamera*//*?}*/().position();
         double near = Math.sqrt((cam.x - x) * (cam.x - x) + (cam.y - y) * (cam.y - y) + (cam.z - z) * (cam.z - z));
         float fade = (float) Math.max(0, Math.min(1, (near - 1.2) / 1.3));
-        ((DisplayAccessor) entity).freefpv$setTransformation(new Transformation(null, q, new Vector3f((fpv ? 0.5f : 0.55f) * fade), null));
+        ((DisplayAccessor) entity).freefpv$setTransformation(new Transformation(null, q, new Vector3f(airframe.scale * fade), null));
     }
 
     private void spawn(ClientLevel target) {
         remove();
         Display.ItemDisplay display = new Display.ItemDisplay(/*? if >=26.2 {*/EntityTypes/*?} else {*//*EntityType*//*?}*/.ITEM_DISPLAY, target);
         display.setId(ID);
-        ItemStack stack = new ItemStack(Items.PAPER);
-        stack.set(DataComponents.ITEM_MODEL, FreeFpv.id(fpv ? "drone_fpv_ghost" : "drone_camera_ghost"));
-        ((ItemDisplayAccessor) display).freefpv$setItemStack(stack);
+        ((ItemDisplayAccessor) display).freefpv$setItemStack(DroneServer.droneStack(airframe, 0xFFFFFF, 0xFFFFFF, true));
         ((DisplayAccessor) display).freefpv$setPosRotInterpolationDuration(1);
         ((DisplayAccessor) display).freefpv$setTransformationInterpolationDuration(1);
         display.setPos(samples[1], samples[2], samples[3]);

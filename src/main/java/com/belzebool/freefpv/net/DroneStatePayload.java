@@ -12,18 +12,19 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
  */
 public record DroneStatePayload(boolean active, boolean fpv, double x, double y, double z,
                                 float qx, float qy, float qz, float qw, float motor, int flags,
-                                int clockMs) implements CustomPacketPayload {
+                                int clockMs, int airframe, int frameColor, int ledColor) implements CustomPacketPayload {
     public static final Type<DroneStatePayload> TYPE = new Type<>(FreeFpv.id("drone_state"));
     public static final StreamCodec<FriendlyByteBuf, DroneStatePayload> CODEC =
         CustomPacketPayload.codec(DroneStatePayload::write, DroneStatePayload::new);
 
     public static DroneStatePayload inactive() {
-        return new DroneStatePayload(false, false, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0);
+        return new DroneStatePayload(false, false, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0);
     }
 
     private DroneStatePayload(FriendlyByteBuf buf) {
         this(buf.readBoolean(), buf.readBoolean(), buf.readDouble(), buf.readDouble(), buf.readDouble(),
-            buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readByte(), buf.readVarInt());
+            buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readByte(), buf.readVarInt(),
+            buf.readByte(), buf.readInt(), buf.readInt());
     }
 
     private void write(FriendlyByteBuf buf) {
@@ -39,6 +40,9 @@ public record DroneStatePayload(boolean active, boolean fpv, double x, double y,
         buf.writeFloat(motor);
         buf.writeByte(flags);
         buf.writeVarInt(clockMs);
+        buf.writeByte(airframe);
+        buf.writeInt(frameColor);
+        buf.writeInt(ledColor);
     }
 
     @Override

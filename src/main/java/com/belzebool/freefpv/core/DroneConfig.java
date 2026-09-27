@@ -28,6 +28,7 @@ public final class DroneConfig {
     public Effects effects = new Effects();
     public Tools tools = new Tools();
     public Race race = new Race();
+    public Drone drone = new Drone();
 
     public static final class General {
         /** Mode used the first time a drone is launched: CINE, NORMAL, SPORT, ANGLE or ACRO. */
@@ -49,6 +50,8 @@ public final class DroneConfig {
     }
 
     public static final class Camera {
+        /** FPV video look: analog, o4 (DJI O4), walksnail, clean (lens only) or off. */
+        public String videoStyle = "analog";
         /** Horizontal field of view in degrees, like a real FPV camera lens. */
         public double fpvFov = 118;
         /** FPV camera uptilt in degrees. Freestyle pilots use 20-35. */
@@ -157,6 +160,41 @@ public final class DroneConfig {
         public boolean pilotPose = true;
     }
 
+    /** Your drones' build and paint, set in the drone workshop. Other players see them too. */
+    public static final class Drone {
+        /** FPV build: freestyle, cinewhoop, long_range or avata. */
+        public String fpvAirframe = "freestyle";
+        public String fpvFrameColor = "EB7F24";
+        public String fpvLedColor = "3CD8F0";
+        public String cameraColor = "E6E6E6";
+
+        public Airframe airframe(boolean fpv) {
+            if (!fpv) return Airframe.MINI;
+            Airframe a = Airframe.parse(fpvAirframe, Airframe.FREESTYLE);
+            return a.fpv ? a : Airframe.FREESTYLE;
+        }
+
+        public int frameRgb(boolean fpv) {
+            return hex(fpv ? fpvFrameColor : cameraColor, fpv ? 0xEB7F24 : 0xE6E6E6);
+        }
+
+        public int ledRgb() {
+            return hex(fpvLedColor, 0x3CD8F0);
+        }
+
+        public static int hex(String value, int fallback) {
+            try {
+                return Integer.parseInt(value.replace("#", "").trim(), 16) & 0xFFFFFF;
+            } catch (RuntimeException e) {
+                return fallback;
+            }
+        }
+
+        public static String hex(int rgb) {
+            return String.format(java.util.Locale.ROOT, "%06X", rgb & 0xFFFFFF);
+        }
+    }
+
     public static final class Race {
         /** Coloured LED trail behind your drone while racing. */
         public boolean trail = true;
@@ -217,6 +255,13 @@ public final class DroneConfig {
         };
     }
 
+    /** Deep copy, for per-flight adjustments that must not end up in the file. */
+    public DroneConfig copy() {
+        DroneConfig c = GSON.fromJson(GSON.toJson(this), DroneConfig.class);
+        c.fillMissing();
+        return c;
+    }
+
     public static DroneConfig load(Path file) {
         DroneConfig config = null;
         if (Files.isRegularFile(file)) {
@@ -245,6 +290,7 @@ public final class DroneConfig {
 
     /** Sections missing from an older file come back as null from Gson. */
     private void fillMissing() {
+        if (drone == null) drone = new Drone();
         if (race == null) race = new Race();
         if (general == null) general = new General();
         if (camera == null) camera = new Camera();

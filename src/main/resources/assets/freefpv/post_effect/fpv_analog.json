@@ -1,0 +1,87 @@
+{
+  "targets": {
+    "swap": {}
+  },
+  "passes": [
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "freefpv:post/fpv_lens",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "minecraft:main",
+          "bilinear": true
+        }
+      ],
+      "output": "swap",
+      "uniforms": {
+        "FpvLensConfig": [
+          {
+            "name": "Fisheye",
+            "type": "float",
+            "value": 0.62
+          },
+          {
+            "name": "Chroma",
+            "type": "float",
+            "value": 0.02
+          },
+          {
+            "name": "Saturation",
+            "type": "float",
+            "value": 1.18
+          },
+          {
+            "name": "Contrast",
+            "type": "float",
+            "value": 1.1
+          },
+          {
+            "name": "Tint",
+            "type": "vec3",
+            "value": [
+              1.03,
+              1.0,
+              0.95
+            ]
+          },
+          {
+            "name": "Vignette",
+            "type": "float",
+            "value": 0.45
+          },
+          {
+            "name": "Softness",
+            "type": "float",
+            "value": 0.45
+          }
+        ]
+      }
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "minecraft:post/blit",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "swap"
+        }
+      ],
+      "uniforms": {
+        "BlitConfig": [
+          {
+            "name": "ColorModulate",
+            "type": "vec4",
+            "value": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        ]
+      },
+      "output": "minecraft:main"
+    }
+  ]
+}

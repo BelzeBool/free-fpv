@@ -95,6 +95,16 @@ tasks {
 
         filesMatching("fabric.mod.json") { expand(props) }
 
+        // Post-effect shaders: 26.3 declares interface locations, older versions don't.
+        val modernShaders = sc.current.parsed >= "26.3"
+        val shaderProps = mapOf(
+            "shader_header" to if (modernShaders) "#version 330\n#extension GL_ARB_separate_shader_objects : require" else "#version 330",
+            "shader_in" to if (modernShaders) "layout(location = 0) in" else "in",
+            "shader_out" to if (modernShaders) "layout(location = 0) out" else "out",
+        )
+        inputs.properties(shaderProps)
+        filesMatching("assets/freefpv/shaders/**") { expand(shaderProps) }
+
         val mixinJava = "JAVA_${requiredJava.majorVersion}"
         filesMatching("*.mixins.json") { expand("java" to mixinJava) }
 

@@ -79,7 +79,7 @@ public final class ClientRace {
     }
 
     public static void onGhost(GhostPayload payload) {
-        if (race != null && race.trackId().equals(payload.trackId())) GHOST.start(payload.samples(), payload.fpv(), race.lapStartMs());
+        if (race != null && race.trackId().equals(payload.trackId())) GHOST.start(payload.samples(), com.belzebool.freefpv.core.Airframe.byOrdinal(payload.airframe()), race.lapStartMs());
     }
 
     private static void show(String title, String sub, int color) {

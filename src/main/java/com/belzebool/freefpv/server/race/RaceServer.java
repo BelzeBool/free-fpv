@@ -158,7 +158,7 @@ public final class RaceServer {
                 send(player, RacePayload.reset());
             } else {
                 for (RaceSession.Event e : session.update(pilot.x, pilot.y, pilot.z, pilot.clock, msg.x(), msg.y(), msg.z(), clock)) {
-                    onEvent(player, pilot, session, e, msg.fpv());
+                    onEvent(player, pilot, session, e, msg.airframe());
                 }
                 if (pilot.session != null && session.running) {
                     pilot.lap.add(new float[]{clock - session.lapStartMs, (float) msg.x(), (float) msg.y(), (float) msg.z(),
@@ -176,7 +176,7 @@ public final class RaceServer {
         pilot.clock = msg.clockMs();
     }
 
-    private static void onEvent(ServerPlayer player, Pilot pilot, RaceSession s, RaceSession.Event e, boolean fpv) {
+    private static void onEvent(ServerPlayer player, Pilot pilot, RaceSession s, RaceSession.Event e, int airframe) {
         Track track = s.track;
         String uuid = player.getStringUUID();
         TrackStore.Ghost pb = store.ghost(track.id, uuid);
@@ -218,7 +218,7 @@ public final class RaceServer {
 
         if (e.kind() == RaceSession.Kind.START || e.kind() == RaceSession.Kind.LAP) {
             TrackStore.Ghost ghost = store.ghost(track.id, uuid);
-            if (ghost != null && ghost.samples().length > 0) send(player, new GhostPayload(track.id, fpv, ghost.samples()));
+            if (ghost != null && ghost.samples().length > 0) send(player, new GhostPayload(track.id, airframe, ghost.samples()));
         }
     }
 

@@ -51,6 +51,10 @@ public final class DroneRemoteTool implements Multitool {
 
     @Override
     public void use(Minecraft mc) {
+        if (mc.player != null && mc.player.isShiftKeyDown()) {
+            DroneController.INSTANCE.openWorkshop(mc, fpv);
+            return;
+        }
         DroneController.INSTANCE.start(mc, fpv);
     }
 
